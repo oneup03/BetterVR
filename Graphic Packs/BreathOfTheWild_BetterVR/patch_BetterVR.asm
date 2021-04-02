@@ -55,13 +55,13 @@ newRotY:
 newRotZ:
 .float 0.0
 
-; Additional settings you can change
+; Additional settings
 FOVSetting:
 .float $FOV
 HeadPositionSensitivitySetting:
-.float 2.0
+.float $headPositionSensitivity
 HeightPositionOffsetSetting:
-.float 0.1
+.float $heightPositionOffset
 
 
 CAM_OFFSET_POS = 0x5C0
