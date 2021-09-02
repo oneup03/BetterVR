@@ -3,27 +3,24 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
-; Data from the native application
-hookStatus:
-.byte 1
-.align 4
-hmdQuatX:
-.float 0.0
-hmdQuatY:
-.float 0.0
-hmdQuatZ:
-.float 0.0
-hmdQuatW:
-.float 0.0
-hmdPosX:
-.float 0.0
-hmdPosY:
-.float 0.0
-hmdPosZ:
-.float 0.0
+; Additional settings
+startGraphicPackData:
+SwappedFlipSideSetting:
+.int $swappedFlipSide
+EyeSeparationSetting:
+.float $eyeSeparationSetting
+HeadPositionSensitivitySetting:
+.float $headPositionSensitivity
+HeightPositionOffsetSetting:
+.float $heightPositionOffset
+HUDScaleSetting:
+.float $hudScale
+MenuScaleSetting:
+.float $menuScale
+ZoomOutLevelSetting:
+.float $zoomOutLevelSetting
 
-; Inputs for the calculation code cave
-oldPosX:
+oldPosX: ; Input for the calculations done in the Vulkan layer
 .float 0.0
 oldPosY:
 .float 0.0
@@ -35,8 +32,10 @@ oldTargetY:
 .float 0.0
 oldTargetZ:
 .float 0.0
-; Output from the calculation code cave
-newPosX:
+oldFOV:
+.float 0.0
+
+newPosX: ; New post-calculated values from the Vulkan layer
 .float 0.0
 newPosY:
 .float 0.0
@@ -54,26 +53,17 @@ newRotY:
 .float 0.0
 newRotZ:
 .float 0.0
-
-; Additional settings
-FOVSetting:
-.float $FOV
-HeadPositionSensitivitySetting:
-.float $headPositionSensitivity
-HeightPositionOffsetSetting:
-.float $heightPositionOffset
-
+newFOV:
+.float 0.0
+newAspectRatio:
+.float 0.872665
 
 CAM_OFFSET_POS = 0x5C0
 CAM_OFFSET_TARGET = 0x5CC
+CAM_OFFSET_FOV = 0x5E4
 
-changeCameraMatrix:
+calcCameraMatrix:
 lwz r0, 0x1c(r1) ; original instruction
-
-lis r7, hookStatus@ha
-lbz r7, hookStatus@l(r7)
-cmpwi r7, 3
-bltlr
 
 lfs f0, CAM_OFFSET_POS+0x0(r31)
 lis r7, oldPosX@ha
@@ -95,13 +85,17 @@ lfs f0, CAM_OFFSET_TARGET+0x8(r31)
 lis r7, oldTargetZ@ha
 stfs f0, oldTargetZ@l(r7)
 
-lis r7, hookStatus@ha
-lbz r7, hookStatus@l(r7)
-cmpwi r7, 3
-beq calcNewRotationWrapper
+lfs f0, CAM_OFFSET_FOV(r31)
+lis r7, oldFOV@ha
+stfs f0, oldFOV@l(r7)
 
-finishStoreResults:
+lis r7, continueCodeAddr@ha
+addi r7, r7, continueCodeAddr@l
+lis r30, startGraphicPackData@ha
+addi r30, r30, startGraphicPackData@l
+b import.coreinit.cameraHookUpdate
 
+continueCodeAddr:
 lis r7, newPosX@ha
 lfs f0, newPosX@l(r7)
 stfs f0, CAM_OFFSET_POS(r31)
@@ -122,22 +116,18 @@ lis r7, newTargetZ@ha
 lfs f0, newTargetZ@l(r7)
 stfs f0, CAM_OFFSET_TARGET+0x8(r31)
 
-lis r7, FOVSetting@ha
-lfs f0, FOVSetting@l(r7)
-stfs f0, 0x5E4(r31)
+lis r7, newFOV@ha
+lfs f0, newFOV@l(r7)
+stfs f0, CAM_OFFSET_FOV(r31)
 
 blr
 
-0x02C05500 = bla changeCameraMatrix
-0x02C05598 = bla changeCameraMatrix
+0x02C05500 = bla calcCameraMatrix
+0x02C05598 = bla calcCameraMatrix
+
 
 changeCameraRotation:
 stfs f10, 0x18(r31)
-
-lis r8, hookStatus@ha
-lbz r8, hookStatus@l(r8)
-cmpwi r8, 3
-bltlr
 
 lis r8, newRotX@ha
 lfs f10, newRotX@l(r8)
@@ -155,6 +145,29 @@ blr
 
 0x02E57FF0 = bla changeCameraRotation
 
+updateEndOfFrame:
+li r4, -1 ; Execute the instruction that got replaced
+
+lis r5, startGraphicPackData@ha
+addi r5, r5, startGraphicPackData@l
+b import.coreinit.cameraHookFrame
+
+0x031FAAF0 = bla updateEndOfFrame
+
+createNewScreenHook:
+mflr r0
+
+lis r8, continueFromScreenHook@ha
+addi r8, r8, continueFromScreenHook@l
+b import.coreinit.cameraHookInterface
+
+0x0305EAE8 = b createNewScreenHook
+0x0305EAEC = continueFromScreenHook:
+
+0x0386D010 = lis r28, newAspectRatio@ha
+0x0386D014 = lfs f12, newAspectRatio@l(r28)
+0x0386D018 = b continueFromChangeAspectRatio
+0x0386D024 = continueFromChangeAspectRatio:
 
 0x101BF8DC = .float $linkOpacity
 0x10216594 = .float $cameraDistance

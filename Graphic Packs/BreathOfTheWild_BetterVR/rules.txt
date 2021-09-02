@@ -2,7 +2,7 @@
 titleIds = 00050000101C9300,00050000101C9400,00050000101C9500
 name = Better VR
 path = "The Legend of Zelda: Breath of the Wild/Better VR"
-description = Woah, put on those goggles!
+description = Used to enable and change VR settings for BetterVR.||Made by Crementif, Postposterous, etra [insert more random people that helped].
 version = 7
 
 [Default]
@@ -10,12 +10,16 @@ $mode:int = 0
 $FOV = 0.872665
 $cameraDistance = 0.1
 $linkOpacity = 1.0
+$hudScale = 0.4
+$menuScale = 0.4
+$swappedFlipSide = 0
+$eyeSeparationSetting = 0.067000
+$zoomOutLevelSetting = 1.0
 
 ; This changes how much moving your headset moves the in-game camera
-$headPositionSensitivity = 1.0
+$headPositionSensitivity = 2.5
 ; This value gets subtracted from the camera height to make the camera look smaller
 $heightPositionOffset = 0.0
-
 
 # Mode selector
 
@@ -69,7 +73,7 @@ $cameraDistance = 0.9
 [Preset]
 name = Extreme
 category = Field Of View
-$FOV = 1.3
+$FOV = 1.97
 
 [Preset]
 name = Very High
@@ -96,3 +100,60 @@ $FOV = 0.75
 name = Very Low
 category = Field Of View
 $FOV = 0.6
+
+# HUD Scale
+
+[Preset]
+name = Tiny
+category = HUD Scale (hearts, minimap etc.)
+$hudScale = 0.3
+
+[Preset]
+name = Small (Recommended)
+category = HUD Scale (hearts, minimap etc.)
+default = 1
+$hudScale = 0.4
+
+[Preset]
+name = Medium
+category = HUD Scale (hearts, minimap etc.)
+$hudScale = 0.5
+
+[Preset]
+name = Big
+category = HUD Scale (hearts, minimap etc.)
+$hudScale = 0.6
+
+# Menu Scale
+
+[Preset]
+name = Tiny
+category = Menu Scale (inventory, map etc.)
+$menuScale = 1.2
+
+[Preset]
+name = Small
+category = Menu Scale (inventory, map etc.)
+default = 1
+$menuScale = 0.75
+
+[Preset]
+name = Medium (Recommended)
+category = Menu Scale (inventory, map etc.)
+$menuScale = 0.6
+
+[Preset]
+name = Big
+category = Menu Scale (inventory, map etc.)
+$menuScale = 0.5
+
+[Preset]
+name = Enabled
+category = Swap Sides
+$swappedFlipSide = 1
+
+[Preset]
+name = Disabled (Default)
+category = Swap Sides
+default = 1
+$swappedFlipSide = 0

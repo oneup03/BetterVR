@@ -65,18 +65,18 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR\patch_BetterVR.asm">
+    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\patch_BetterVR.asm">
       <Filter>Graphic Packs</Filter>
     </None>
-    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR\patch_CalcRot.asm">
+    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\patch_CalcRot.asm">
       <Filter>Graphic Packs</Filter>
     </None>
-    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR\patch_CalcRotWrapper.asm">
+    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\patch_CalcRotWrapper.asm">
       <Filter>Graphic Packs</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\Graphic Packs\BreathOfTheWild_BetterVR\rules.txt">
+    <Text Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\rules.txt">
       <Filter>Graphic Packs</Filter>
     </Text>
   </ItemGroup>

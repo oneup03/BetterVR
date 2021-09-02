@@ -31,12 +31,12 @@
     <ClInclude Include="Utility\XrString.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR\patch_BetterVR.asm" />
-    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR\patch_CalcRot.asm" />
-    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR\patch_CalcRotWrapper.asm" />
+    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\patch_BetterVR.asm" />
+    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\patch_CalcRot.asm" />
+    <None Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\patch_CalcRotWrapper.asm" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\Graphic Packs\BreathOfTheWild_BetterVR\rules.txt" />
+    <Text Include="..\Graphic Packs\BreathOfTheWild_BetterVR_OpenXR\rules.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -44,7 +44,7 @@
     <ProjectGuid>{a7f9fc31-0068-479b-b0fe-dcb33dd2b6ea}</ProjectGuid>
     <RootNamespace>BotWOpenXRApp</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>BetterVR-OpenXR</ProjectName>
+    <ProjectName>BetterVR_OpenXR</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

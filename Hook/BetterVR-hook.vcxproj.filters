@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="xxhash.c">
+      <Filter>Framework Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(VULKAN_SDK)\LayerFactory\layer_factory.cpp">
+      <Filter>Framework Files</Filter>
+    </ClCompile>
+    <ClCompile Include="layer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="logging.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vr_renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vr_camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="interceptor_objects.h">
+      <Filter>Framework Files</Filter>
+    </ClInclude>
+    <ClInclude Include="layer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{aafbd81d-2749-429d-9eab-422f16adcef4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Framework Files">
+      <UniqueIdentifier>{e67039af-00f2-4e11-aa7d-b84ec3306629}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="VkLayer_BetterVR_Hook.json">
+      <Filter>Framework Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>

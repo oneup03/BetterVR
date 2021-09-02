@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)Cemu\Cemu.exe</LocalDebuggerCommand>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Cemu\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerEnvironment>VK_LAYER_PATH=$(TargetDir);D:\Programs\Vulkan\1.2.154.1\Bin\;%VK_LAYER_PATH%
+VK_INSTANCE_LAYERS=VK_LAYER_LUNARG_BetterVR_Hook
+VK_LOADER_DISABLE_INST_EXT_FILTER=1
+VK_LOADER_DEBUG=all</LocalDebuggerEnvironment>
+    <LocalDebuggerCommandArguments>-g "H:/WiiU/Games/Breath Of The Wild/code/U-King.rpx"</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerEnvironment>VK_LAYER_PATH=$(TargetDir);D:\Programs\Vulkan\1.2.154.1\Bin\;%VK_LAYER_PATH%
+VK_INSTANCE_LAYERS=VK_LAYER_LUNARG_BetterVR_Hook
+VK_LOADER_DISABLE_INST_EXT_FILTER=1
+VK_LOADER_DEBUG=all</LocalDebuggerEnvironment>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(SolutionDir)Cemu\Cemu.exe</LocalDebuggerCommand>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Cemu\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>-g "H:/WiiU/Games/Breath Of The Wild/code/U-King.rpx"</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+</Project>

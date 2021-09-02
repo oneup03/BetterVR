@@ -39,6 +39,5 @@ OpenXR/Debug/
 
 .vs/
 
-OpenXR/BotW-OpenXR-App.vcxproj.user
-
-Hook/
+/Cemu/*
+!/Cemu/.gitkeep
