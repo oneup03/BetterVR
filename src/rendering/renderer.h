@@ -9,7 +9,6 @@ class RND_Renderer {
 public:
     explicit RND_Renderer(XrSession xrSession);
     ~RND_Renderer();
-    void StopRendering();
 
     void StartFrame();
     void EndFrame();

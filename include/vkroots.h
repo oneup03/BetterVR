@@ -5390,10 +5390,10 @@ namespace vkroots {
 
   template <typename InstanceOverrides, typename PhysicalDeviceOverrides, typename DeviceOverrides>
   static PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name) {
-      std::string name_str("[GetInstanceProcAddr] Resolved ");
-      name_str += name;
-      name_str += "\n";
-      OutputDebugStringA(name_str.c_str());
+    // std::string name_str("[GetInstanceProcAddr] Resolved ");
+    // name_str += name;
+    // name_str += "\n";
+    // OutputDebugStringA(name_str.c_str());
       
     const VkInstanceDispatch* dispatch = tables::LookupInstanceDispatch(instance);
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
@@ -5843,10 +5843,10 @@ namespace vkroots {
 
   template <typename InstanceOverrides, typename PhysicalDeviceOverrides, typename DeviceOverrides>
   static PFN_vkVoidFunction GetPhysicalDeviceProcAddr(VkInstance instance, const char* name) {
-    std::string name_str("[GetPhysicalDeviceProcAddr] Resolved ");
-    name_str += name;
-    name_str += "\n";
-    OutputDebugStringA(name_str.c_str());
+    // std::string name_str("[GetPhysicalDeviceProcAddr] Resolved ");
+    // name_str += name;
+    // name_str += "\n";
+    // OutputDebugStringA(name_str.c_str());
     
     const VkPhysicalDeviceDispatch* dispatch = tables::LookupPhysicalDeviceDispatch(instance);
     constexpr bool HasAcquireDrmDisplayEXT = requires(const PhysicalDeviceOverrides& t) { &PhysicalDeviceOverrides::AcquireDrmDisplayEXT; };
@@ -6096,10 +6096,10 @@ namespace vkroots {
 
   template <typename InstanceOverrides, typename PhysicalDeviceOverrides, typename DeviceOverrides>
   static PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
-    std::string name_str("[GetDeviceProcAddr] Resolved ");
-    name_str += name;
-    name_str += "\n";
-    OutputDebugStringA(name_str.c_str());
+    // std::string name_str("[GetDeviceProcAddr] Resolved ");
+    // name_str += name;
+    // name_str += "\n";
+    // OutputDebugStringA(name_str.c_str());
     
     const VkDeviceDispatch* dispatch = tables::LookupDeviceDispatch(device);
 #ifdef VK_USE_PLATFORM_WIN32_KHR

@@ -4,12 +4,12 @@
 class CemuHooks {
 public:
     CemuHooks() {
-        HMODULE cemuModuleHandle = GetModuleHandleA(NULL);
-        checkAssert(cemuModuleHandle != NULL, "Failed to get handle of Cemu process which is required for interfacing with Cemu!");
+        m_cemuHandle = GetModuleHandleA(NULL);
+        checkAssert(m_cemuHandle != NULL, "Failed to get handle of Cemu process which is required for interfacing with Cemu!");
 
-        gameMeta_getTitleId = (gameMeta_getTitleIdPtr_t)GetProcAddress(cemuModuleHandle, "gameMeta_getTitleId");
-        memory_getBase = (memory_getBasePtr_t)GetProcAddress(cemuModuleHandle, "memory_getBase");
-        osLib_registerHLEFunction = (osLib_registerHLEFunctionPtr_t)GetProcAddress(cemuModuleHandle, "osLib_registerHLEFunction");
+        gameMeta_getTitleId = (gameMeta_getTitleIdPtr_t)GetProcAddress(m_cemuHandle, "gameMeta_getTitleId");
+        memory_getBase = (memory_getBasePtr_t)GetProcAddress(m_cemuHandle, "memory_getBase");
+        osLib_registerHLEFunction = (osLib_registerHLEFunctionPtr_t)GetProcAddress(m_cemuHandle, "osLib_registerHLEFunction");
         checkAssert(gameMeta_getTitleId != NULL && memory_getBase != NULL && osLib_registerHLEFunction != NULL, "Failed to get function pointers of Cemu functions! Is this hook being used on Cemu?");
 
         bool isSupportedTitleId = gameMeta_getTitleId() == 0x00050000101C9300 || gameMeta_getTitleId() == 0x00050000101C9400 || gameMeta_getTitleId() == 0x00050000101C9500;
@@ -23,14 +23,16 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_UpdateCameraRotation", &hook_UpdateCameraRotation);
         osLib_registerHLEFunction("coreinit", "hook_UpdateCameraOffset", &hook_UpdateCameraOffset);
         osLib_registerHLEFunction("coreinit", "hook_CalculateCameraAspectRatio", &hook_CalculateCameraAspectRatio);
-//        osLib_registerHLEFunction("coreinit", "hook_UpdateProjectionMatrix", &hook_UpdateProjectionMatrix);
-        //osLib_registerHLEFunction("coreinit", "hook_UpdateInterface", &hook_UpdateInterface);
     };
-    ~CemuHooks(){};
+    ~CemuHooks() {
+        FreeLibrary(m_cemuHandle);
+    };
 
     static data_VRSettingsIn GetSettings();
 
 private:
+    HMODULE m_cemuHandle;
+
     osLib_registerHLEFunctionPtr_t osLib_registerHLEFunction;
     memory_getBasePtr_t memory_getBase;
     gameMeta_getTitleIdPtr_t gameMeta_getTitleId;

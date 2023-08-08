@@ -85,7 +85,7 @@ addi r1, r1, 0x10
 blr
 
 loadLineFormat:
-.string "sead::PerspectiveProjection::setFovy_(this = 0x%08x fovRadians = %f offsetX = %f) LR = 0x%08x %c"
+.string "sead::PerspectiveProjection::setFovY(this = 0x%08x fovRadians = %f offsetX = %f) LR = 0x%08x %c"
 printSetFovY:
 mflr r0
 stwu r1, -0x10(r1)
@@ -117,4 +117,4 @@ mtlr r0
 addi r1, r1, 0x10
 blr
 
-0x030C16F8 = bla printSetFovY
+; 0x030C16F8 = bla printSetFovY

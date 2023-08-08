@@ -58,7 +58,7 @@ OpenXR::OpenXR() {
     xrInstanceCreateInfo.enabledExtensionNames = enabledExtensions.data();
     xrInstanceCreateInfo.enabledApiLayerCount = 0;
     xrInstanceCreateInfo.enabledApiLayerNames = NULL;
-    xrInstanceCreateInfo.applicationInfo = { "BetterVR OpenXR", 1, "Cemu", 1, XR_CURRENT_API_VERSION };
+    xrInstanceCreateInfo.applicationInfo = { "BetterVR", 1, "Cemu", 1, XR_CURRENT_API_VERSION };
     checkXRResult(xrCreateInstance(&xrInstanceCreateInfo, &m_instance), "Failed to initialize the OpenXR instance!");
 
     // Load extension pointers for this XrInstance
@@ -229,11 +229,12 @@ void OpenXR::ProcessEvents() {
                 break;
             case XR_SESSION_STATE_STOPPING:
                 Log::print("OpenXR has indicated that the session should be ended!");
-                this->m_renderer->StopRendering();
-                m_session = XR_NULL_HANDLE;
+                this->m_renderer.reset();
                 break;
             case XR_SESSION_STATE_EXITING:
-                Log::print("OpenXR has indicated that the session should be destroyed! todo: Close Cemu maybe?");
+                Log::print("OpenXR has indicated that the session should be destroyed!");
+                // an exception is thrown here instead of using exit() to allow Cemu to ideally gracefully shutdown
+                throw std::runtime_error("BetterVR mod has been requested to exit by OpenXR!");
                 break;
             case XR_SESSION_STATE_LOSS_PENDING:
                 Log::print("OpenXR has indicated that the session is going to be lost!");

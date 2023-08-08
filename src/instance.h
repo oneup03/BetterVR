@@ -43,7 +43,7 @@ private:
     };
 
     ~VRManager() {
-        // note: OpenXR gets to remove it's swapchains first before D3D12 gets destroyed, so reverse that order
+        // note: OpenXR gets to remove its swapchains first before D3D12 gets destroyed, so reverse that order
         VK.reset();
         XR.reset();
         D3D12.reset();

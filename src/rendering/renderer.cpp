@@ -13,10 +13,6 @@ RND_Renderer::RND_Renderer(XrSession xrSession): m_session(xrSession) {
 }
 
 RND_Renderer::~RND_Renderer() {
-    StopRendering();
-}
-
-void RND_Renderer::StopRendering() {
     xrRequestExitSession(m_session);
     if (m_session != XR_NULL_HANDLE) {
         checkXRResult(xrEndSession(m_session), "Failed to end OpenXR session!");

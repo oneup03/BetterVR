@@ -4,12 +4,13 @@
 #include "utils/d3d12_utils.h"
 
 
-std::atomic_size_t foundResolutions = 2;
-
 std::mutex lockImageResolutions;
 std::unordered_map<VkImage, std::pair<VkExtent2D, VkFormat>> imageResolutions;
 
 std::vector<std::pair<VkCommandBuffer, SharedTexture*>> s_activeCopyOperations;
+
+VkImage s_curr3DColorImage = VK_NULL_HANDLE;
+VkImage s_curr3DDepthImage = VK_NULL_HANDLE;
 
 using namespace VRLayer;
 using Status3D = RND_Renderer::Layer3D::Status3D;
@@ -19,10 +20,9 @@ using Status2D = RND_Renderer::Layer2D::Status2D;
 VkResult VkDeviceOverrides::CreateImage(const vkroots::VkDeviceDispatch* pDispatch, VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage) {
     VkResult res = pDispatch->CreateImage(device, pCreateInfo, pAllocator, pImage);
 
-    //static uint32_t lowestFoundWidth = std::min_element(captureTextures.begin(), captureTextures.end(), [](const CaptureTexture& a, const CaptureTexture& b){ return a.foundSize.width < b.foundSize.width; })->foundSize.width;
-    if (pCreateInfo->extent.width >= 1280 && pCreateInfo->extent.height >= 720 && foundResolutions > 0) {
+    if (pCreateInfo->extent.width >= 1280 && pCreateInfo->extent.height >= 720) {
         lockImageResolutions.lock();
-        //Log::print("Added texture {}: {}x{} @ {}", (void*)*pImage, pCreateInfo->extent.width, pCreateInfo->extent.height, pCreateInfo->format);
+        // Log::print("Added texture {}: {}x{} @ {}", (void*)*pImage, pCreateInfo->extent.width, pCreateInfo->extent.height, pCreateInfo->format);
         checkAssert(imageResolutions.try_emplace(*pImage, std::make_pair(VkExtent2D{ pCreateInfo->extent.width, pCreateInfo->extent.height }, pCreateInfo->format)).second, "Couldn't insert image resolution into map!");
         lockImageResolutions.unlock();
     }
@@ -31,16 +31,20 @@ VkResult VkDeviceOverrides::CreateImage(const vkroots::VkDeviceDispatch* pDispat
 
 void VkDeviceOverrides::DestroyImage(const vkroots::VkDeviceDispatch* pDispatch, VkDevice device, VkImage image, const VkAllocationCallbacks* pAllocator) {
     pDispatch->DestroyImage(device, image, pAllocator);
-    if (foundResolutions > 0) {
-        lockImageResolutions.lock();
-        if (imageResolutions.erase(image)) {
-            //Log::print("Removed texture {}", (void*)image);
+
+    lockImageResolutions.lock();
+    if (imageResolutions.erase(image)) {
+        // Log::print("Removed texture {}", (void*)image);
+        if (s_curr3DColorImage == image) {
+            s_curr3DColorImage = VK_NULL_HANDLE;
         }
-        lockImageResolutions.unlock();
+        else if (s_curr3DDepthImage == image) {
+            s_curr3DDepthImage = VK_NULL_HANDLE;
+        }
     }
+    lockImageResolutions.unlock();
 }
 
-VkImage first3DColorImage = VK_NULL_HANDLE;
 void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDispatch, VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
     // check for magical clear values
     if (pColor->float32[1] >= 0.12 && pColor->float32[1] <= 0.13 && pColor->float32[2] >= 0.97 && pColor->float32[2] <= 0.99) {
@@ -71,20 +75,19 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
 
         if (captureIdx == 0) {
             // 3D layer - color texture for 3D rendering
-            // todo: Fix code for when color buffer is recreated/changed for some menus (e.g. map screen)
 
-            if (first3DColorImage == VK_NULL_HANDLE) {
+            // check if the color texture has the appropriate texture format
+            if (s_curr3DColorImage == VK_NULL_HANDLE) {
                 lockImageResolutions.lock();
-                auto it = imageResolutions.find(image);
-                if (it != imageResolutions.end()) {
+                if (auto it = imageResolutions.find(image); it != imageResolutions.end()) {
                     if (it->second.second == VK_FORMAT_B10G11R11_UFLOAT_PACK32) {
-                        first3DColorImage = it->first;
+                        s_curr3DColorImage = it->first;
                     }
                 }
                 lockImageResolutions.unlock();
             }
 
-            if (image != first3DColorImage) {
+            if (image != s_curr3DColorImage) {
                 const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
                 return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
             }
@@ -131,7 +134,6 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
     }
 }
 
-VkImage first3DDepthImage = VK_NULL_HANDLE;
 void VRLayer::VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatch* pDispatch, VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
     // check for magical clear values
     if (rangeCount == 1 && pDepthStencil->depth >= 0.011456789 && pDepthStencil->depth <= 0.013456789) {
@@ -144,19 +146,18 @@ void VRLayer::VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDevi
 
         if (captureIdx == 1) {
             // 3D layer - depth texture for 3D rendering
-            // todo: Fix code for when depth buffer is recreated/changed for some menus (e.g. map screen)
 
-            if (first3DDepthImage == VK_NULL_HANDLE) {
+            if (s_curr3DDepthImage == VK_NULL_HANDLE) {
                 lockImageResolutions.lock();
                 if (auto it = imageResolutions.find(image); it != imageResolutions.end()) {
                     if (it->second.second == VK_FORMAT_D32_SFLOAT) {
-                        first3DDepthImage = it->first;
+                        s_curr3DDepthImage = it->first;
                     }
                 }
                 lockImageResolutions.unlock();
             }
 
-            if (image != first3DDepthImage) {
+            if (image != s_curr3DDepthImage) {
                 return;
             }
 
@@ -282,7 +283,7 @@ VkResult VkDeviceOverrides::QueuePresentKHR(const vkroots::VkDeviceDispatch* pDi
     RND_Renderer* renderer = VRManager::instance().XR->GetRenderer();
     if (renderer && renderer->m_layer3D.GetStatus() != Status3D::UNINITIALIZED) {
         if (renderer->m_layer3D.GetStatus() == Status3D::LEFT_BINDING_DEPTH) {
-            //Log::print("Preparing for 3D rendering - right eye");
+            // Log::print("Preparing for 3D rendering - right eye");
             renderer->m_layer3D.PrepareRendering(OpenXR::EyeSide::RIGHT);
             s_currentEye = OpenXR::EyeSide::LEFT;
         }
