@@ -24,6 +24,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 add_compile_definitions(NOMINMAX)
 add_compile_options("/await")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(VCPKG_TARGET_TRIPLET x64-windows-static-md)
+set(VCPKG_HOST_TRIPLET x64-windows-static-md)
 
 # Find vcpkg dependencies
 find_path(VULKAN_HEADERS_INCLUDE_DIRS "vk_video/vulkan_video_codec_h264std.h")
