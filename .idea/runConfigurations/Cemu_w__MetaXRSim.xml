@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Cemu w/ MetaXRSim" type="CMakeRunConfiguration" factoryName="Application" folderName="Simulator" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="true" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/Cemu" PASS_PARENT_ENVS_2="true" PROJECT_NAME="BetterVR_Layer" TARGET_NAME="BetterVR_Layer" CONFIG_NAME="Debug" RUN_PATH="$PROJECT_DIR$/Cemu/Cemu_debug.exe">
+    <envs>
+      <env name="ENABLE_VULKAN_RENDERDOC_CAPTURE" value="0" />
+      <env name="VK_INSTANCE_LAYERS" value="VK_LAYER_BetterVR_Layer" />
+      <env name="VK_LAYER_PATH" value=".\;" />
+      <env name="VK_LOADER_DEBUG" value="error" />
+      <env name="XR_RUNTIME_JSON" value=".\..\MetaXRSimulator\meta_openxr_simulator.json" />
+    </envs>
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      <option name="CMake.Install" enabled="true" />
+    </method>
+  </configuration>
+</component>

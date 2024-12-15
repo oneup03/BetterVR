@@ -116,6 +116,7 @@ const std::vector<std::string> additionalDeviceExtensions = {
     VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
     VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
     VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
+    VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
     // VK_KHR_SURFACE_EXTENSION_NAME,
 };
 
@@ -160,6 +161,11 @@ VkResult VRLayer::VkInstanceOverrides::CreateDevice(const vkroots::VkInstanceDis
     if (result != VK_SUCCESS) {
         Log::print("Failed to create Vulkan device! Error {}", result);
         return result;
+    }
+
+    // log all extensions
+    for (const std::string& extension : modifiedExtensions) {
+        Log::print("Enabled extension: {}", extension);
     }
 
     // Initialize VRManager late if neither vkEnumeratePhysicalDevices and vkGetPhysicalDeviceProperties were called and used to filter the device

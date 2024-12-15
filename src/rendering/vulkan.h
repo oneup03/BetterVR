@@ -10,11 +10,12 @@ public:
 
     class ImGuiOverlay {
     public:
-        explicit ImGuiOverlay(VkQueue queue, uint32_t width, uint32_t height, VkFormat format);
+        explicit ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint32_t height, VkFormat format);
         ~ImGuiOverlay();
 
         void BeginFrame();
         void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio);
+        void DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage);
         void UpdateControls();
         void Render();
         void DrawOverlayToImage(VkCommandBuffer cb, VkImage destImage);
@@ -32,7 +33,7 @@ public:
         VkSampler m_sampler = VK_NULL_HANDLE;
         std::unique_ptr<VulkanTexture> m_mainFramebuffer;
         VkDescriptorSet m_mainFramebufferDescriptorSet = VK_NULL_HANDLE;
-        float m_mainFramebufferAspectRatio = 0.0f;
+        float m_mainFramebufferAspectRatio = 1.0f;
         std::unique_ptr<VulkanTexture> m_hudFramebuffer;
         VkDescriptorSet m_hudFramebufferDescriptorSet = VK_NULL_HANDLE;
         uint32_t m_framebufferIdx = 0;

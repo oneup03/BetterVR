@@ -55,7 +55,7 @@ private:
     static void hook_CreateNewActor(PPCInterpreter_t* hCPU);
     static void hook_InjectXRInput(PPCInterpreter_t* hCPU);
 
-    [[maybe_unused]] static void updateFrames();
+    static void updateFrames();
 
     template <typename T>
     static void writeMemoryBE(uint64_t offset, T* valuePtr) {
