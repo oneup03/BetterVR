@@ -1,6 +1,9 @@
-#include "vulkan.h"
+#include
+#include
 #include "instance.h"
+#include "vulkan.h"
 
+#include <functional>
 
 RND_Vulkan::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint32_t height, VkFormat format) {
     m_context = ImGui::CreateContext();
@@ -126,39 +129,39 @@ RND_Vulkan::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint3
     Log::print("Fonts initialized for ImGui");
 
     // find HWND that starts with Cemu in its title
-    HWND m_cemuWindow = NULL;
-    DWORD pid = GetCurrentProcessId();
-    struct {
-        HWND hwnd;
-        DWORD pid;
-    } data = { m_cemuWindow, pid };
-    EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
-        // get the process id of the window
-        DWORD windowPid = 0;
-        GetWindowThreadProcessId(hwnd, &windowPid);
+    struct EnumWindowsData {
+        DWORD cemuPid;
+        HWND outHwnd;
+    } enumData = { GetCurrentProcessId(), NULL };
 
-        if (windowPid == ((decltype(data)*)lParam)->pid) {
-            // get the title of the window
-            char title[256];
-            GetWindowText(hwnd, title, sizeof(title));
-
-            // check if the title starts with Cemu
-            if (strncmp(title, "Cemu", 4) == 0) {
-                ((decltype(data)*)lParam)->hwnd = hwnd;
+    EnumWindows([](HWND iteratedHwnd, LPARAM data) -> BOOL {
+        EnumWindowsData* enumData = (EnumWindowsData*)data;
+        DWORD currPid;
+        GetWindowThreadProcessId(iteratedHwnd, &currPid);
+        if (currPid == enumData->cemuPid) {
+            constexpr size_t bufSize = 256;
+            wchar_t buf[bufSize];
+            GetWindowTextW(iteratedHwnd, buf, bufSize);
+            if (wcsstr(buf, L"Cemu") != nullptr) {
+                enumData->outHwnd = iteratedHwnd;
                 return FALSE;
             }
         }
         return TRUE;
-    }, (LPARAM)&data);
+    }, (LPARAM)&enumData);
+    m_cemuTopWindow = enumData.outHwnd;
 
     // find the most nested child window since that's the rendering window
-    HWND childWindow = GetWindow(m_cemuWindow, GW_CHILD);
-    while (childWindow != nullptr) {
-        m_cemuWindow = childWindow;
-        childWindow = GetWindow(m_cemuWindow, GW_CHILD);
+    HWND iteratedHwnd = m_cemuTopWindow;
+    while (true) {
+        HWND nextIteratedHwnd = FindWindowExW(iteratedHwnd, NULL, NULL, NULL);
+        if (nextIteratedHwnd == NULL) {
+            break;
+        }
+        iteratedHwnd = nextIteratedHwnd;
     }
+    m_cemuRenderWindow = iteratedHwnd;
 
-    m_cemuRenderWindow = data.hwnd;
 
     m_mainFramebuffer = std::make_unique<VulkanTexture>(width, height, VK_FORMAT_B10G11R11_UFLOAT_PACK32, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
     m_hudFramebuffer = std::make_unique<VulkanTexture>(width, height, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
@@ -167,12 +170,12 @@ RND_Vulkan::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint3
     VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     samplerInfo.anisotropyEnable = VK_FALSE;
     samplerInfo.maxAnisotropy = 1.0f;
-    samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
@@ -216,40 +219,56 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
         m_hudFramebufferDescriptorSet = ImGui_ImplVulkan_AddTexture(m_sampler, m_hudFramebuffer->GetImageView(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
 
-
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const bool shouldCrop3DTo16_9 = VRManager::instance().Hooks->GetSettings().cropFlatTo16x9Setting == 1;
 
     // calculate width minus the retina scaling
-    ImVec2 viewportPanelSize = ImGui::GetIO().DisplaySize;
-    viewportPanelSize.x = viewportPanelSize.x / ImGui::GetIO().DisplayFramebufferScale.x;
-    viewportPanelSize.y = viewportPanelSize.y / ImGui::GetIO().DisplayFramebufferScale.y;
-
-    if (VRManager::instance().Hooks->GetSettings().cropFlatTo16x9Setting == 1) {
-
-    }
+    ImVec2 windowSize = ImGui::GetIO().DisplaySize;
+    windowSize.x = windowSize.x / ImGui::GetIO().DisplayFramebufferScale.x;
+    windowSize.y = windowSize.y / ImGui::GetIO().DisplayFramebufferScale.y;
 
     // center position using aspect ratio
-    ImVec2 centerPos = ImVec2((viewportPanelSize.x - viewportPanelSize.y * m_mainFramebufferAspectRatio) / 2, 0);
-    ImVec2 centerSize = ImVec2(viewportPanelSize.y * m_mainFramebufferAspectRatio, viewportPanelSize.y);
+    ImVec2 centerPos = ImVec2((windowSize.x - windowSize.y * m_mainFramebufferAspectRatio) / 2, 0);
+    ImVec2 squishedWindowSize = ImVec2(windowSize.y * m_mainFramebufferAspectRatio, windowSize.y);
 
     {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize);
         ImGui::Begin("HUD Background", nullptr, FULLSCREEN_WINDOW_FLAGS);
-        ImGui::Image((ImTextureID)m_hudFramebufferDescriptorSet, ImVec2(1280, 720));
+        ImGui::Image((ImTextureID)m_hudFramebufferDescriptorSet, windowSize);
         ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleVar();
     }
 
     {
-        ImGui::SetNextWindowPos(centerPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::SetNextWindowPos(shouldCrop3DTo16_9 ? ImVec2(0, 0) : centerPos);
+        ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize);
         ImGui::Begin("3D Background", nullptr, FULLSCREEN_WINDOW_FLAGS);
-        ImGui::Image((ImTextureID)m_mainFramebufferDescriptorSet, centerSize, ImVec2(1, 0), ImVec2(1, 0));
 
+        ImVec2 croppedUv0 = ImVec2(0.0f, 0.0f);
+        ImVec2 croppedUv1 = ImVec2(1.0f, 1.0f);
+        if (shouldCrop3DTo16_9) {
+            ImVec2 displaySize = ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y / 2 / m_mainFramebufferAspectRatio);
+            ImVec2 displayOffset = ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (displaySize.x / 2), ImGui::GetIO().DisplaySize.y / 2 - (displaySize.y / 2));
+            ImVec2 textureSize = ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
+
+            croppedUv0 = ImVec2(displayOffset.x / textureSize.x, displayOffset.y / textureSize.y);
+            croppedUv1 = ImVec2((displayOffset.x + displaySize.x) / textureSize.x, (displayOffset.y + displaySize.y) / textureSize.y);
+        }
+
+        ImGui::Image((ImTextureID)m_mainFramebufferDescriptorSet, shouldCrop3DTo16_9 ? windowSize : squishedWindowSize, croppedUv0, croppedUv1);
         ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleVar();
     }
 
     ImGui::ShowDemoWindow();
+
+    ImGui::Begin("HUD");
 }
 
 void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio) {
@@ -271,6 +290,8 @@ void RND_Vulkan::ImGuiOverlay::DrawHUDLayerAsBackground(VkCommandBuffer cb, VkIm
 }
 
 void RND_Vulkan::ImGuiOverlay::Render() {
+    ImGui::End();
+
     ImGui::Render();
 }
 
@@ -283,7 +304,6 @@ void RND_Vulkan::ImGuiOverlay::DrawOverlayToImage(VkCommandBuffer cb, VkImage de
 
     // start render pass
     VkClearValue clearValue = { .color = { 0.0f, 0.0f, 0.0f, 1.0f } };
-
     VkRenderPassBeginInfo renderPassInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = m_renderPass,
@@ -303,11 +323,9 @@ void RND_Vulkan::ImGuiOverlay::DrawOverlayToImage(VkCommandBuffer cb, VkImage de
     // end render pass
     dispatch->CmdEndRenderPass(cb);
 
-    // copy from framebuffer to destination image
+    // transition framebuffer to now be a transfer source
     m_framebuffers[m_framebufferIdx]->vkPipelineBarrier(cb);
     m_framebuffers[m_framebufferIdx]->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-    // copy image
     m_framebuffers[m_framebufferIdx]->vkCopyToImage(cb, destImage);
     m_framebuffers[m_framebufferIdx]->vkPipelineBarrier(cb);
 
@@ -351,12 +369,33 @@ void RND_Vulkan::ImGuiOverlay::UpdateControls() {
     p.x = p.x - blackBarWidth;
     p.y = p.y - blackBarHeight;
 
-    // ImGui::GetIO().DisplaySize = ImVec2((float)windowWidth, (float)windowHeight);
     ImGui::GetIO().DisplayFramebufferScale = ImVec2((float)framebufferWidth / (float)windowWidth, (float)framebufferHeight / (float)windowHeight);
 
-    ImGui::GetIO().MousePos = ImVec2((float)p.x, (float)p.y);
-    ImGui::GetIO().MouseDown[0] = GetAsyncKeyState(VK_LBUTTON) & 0x8000;
-    ImGui::GetIO().MouseDown[1] = GetAsyncKeyState(VK_RBUTTON) & 0x8000;
-    ImGui::GetIO().MouseDown[2] = GetAsyncKeyState(VK_MBUTTON) & 0x8000;
-    return;
+    // update mouse state depending on if the window is focused
+    if (GetForegroundWindow() != m_cemuTopWindow) {
+        ImGui::GetIO().MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
+        ImGui::GetIO().MouseDown[0] = false;
+        ImGui::GetIO().MouseDown[1] = false;
+        ImGui::GetIO().MouseDown[2] = false;
+    }
+    else {
+        ImGui::GetIO().MousePos = ImVec2((float)p.x, (float)p.y);
+        ImGui::GetIO().MouseDown[0] = GetAsyncKeyState(VK_LBUTTON) & 0x8000;
+        ImGui::GetIO().MouseDown[1] = GetAsyncKeyState(VK_RBUTTON) & 0x8000;
+        ImGui::GetIO().MouseDown[2] = GetAsyncKeyState(VK_MBUTTON) & 0x8000;
+    }
+}
+
+// Memory Viewer/Editor
+
+void RND_Vulkan::ImGuiOverlay::AddEntity(const std::string& entity, const std::string& name, uint32_t address, ValueVariant::variant& value) {
+    if (m_entities.find(entity) == m_entities.end()) {
+        m_entities[entity] = {};
+    }
+
+    m_entities[entity].emplace_back(name, address, value);
+}
+
+void RND_Vulkan::ImGuiOverlay::RemoveEntity(const std::string& entity) {
+    m_entities.erase(entity);
 }

@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <string>
+#include <variant>
 #include <type_traits>
 
 #include <Windows.h>

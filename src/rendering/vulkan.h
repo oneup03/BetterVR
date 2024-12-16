@@ -17,6 +17,7 @@ public:
         void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio);
         void DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage);
         void UpdateControls();
+
         void Render();
         void DrawOverlayToImage(VkCommandBuffer cb, VkImage destImage);
 
@@ -25,6 +26,7 @@ public:
         VkDescriptorPool m_descriptorPool;
         VkRenderPass m_renderPass;
 
+        HWND m_cemuTopWindow = nullptr;
         HWND m_cemuRenderWindow = nullptr;
 
         std::array<std::unique_ptr<VulkanFramebuffer>, 2> m_framebuffers;
