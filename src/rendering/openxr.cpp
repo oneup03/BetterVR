@@ -281,7 +281,7 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
             XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
             XrActionSuggestedBinding{ .action = m_inGame_mapAction, .binding = GetXRPath("/user/hand/left/input/thumbstick/click") },
-            XrActionSuggestedBinding{ .action = m_inGame_inventoryAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_inGame_inventoryAction, .binding = GetXRPath("/user/hand/right/input/thumbstick/click") },
 
             XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_cameraAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
@@ -298,7 +298,7 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_scrollAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_navigateAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_inMenu_mapAction, .binding = GetXRPath("/user/hand/left/input/thumbstick/click") },
-            XrActionSuggestedBinding{ .action = m_inMenu_inventoryAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_inMenu_inventoryAction, .binding = GetXRPath("/user/hand/right/input/thumbstick/click") },
             XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
             XrActionSuggestedBinding{ .action = m_backAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
             XrActionSuggestedBinding{ .action = m_sortAction, .binding = GetXRPath("/user/hand/left/input/y/click") },
@@ -381,30 +381,35 @@ void OpenXR::UpdateActions(XrTime predictedFrameTime, bool inMenu) {
     newState.inGame.in_game = !inMenu;
 
     if (inMenu) {
-        XrActionStateGetInfo getNavigateInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getNavigateInfo.action = m_scrollAction;
+        XrActionStateGetInfo getScrollInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getScrollInfo.action = m_scrollAction;
         newState.inMenu.scroll = { XR_TYPE_ACTION_STATE_VECTOR2F };
-        checkXRResult(xrGetActionStateVector2f(m_session, &getNavigateInfo, &newState.inMenu.scroll), "Failed to get navigate action value!");
+        checkXRResult(xrGetActionStateVector2f(m_session, &getScrollInfo, &newState.inMenu.scroll), "Failed to get navigate action value!");
+
+        XrActionStateGetInfo getNavigationInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getNavigationInfo.action = m_navigateAction;
+        newState.inMenu.navigate = { XR_TYPE_ACTION_STATE_VECTOR2F };
+        checkXRResult(xrGetActionStateVector2f(m_session, &getNavigationInfo, &newState.inMenu.navigate), "Failed to get select action value!");
 
         XrActionStateGetInfo getSelectInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getSelectInfo.action = m_navigateAction;
-        newState.inMenu.navigate = { XR_TYPE_ACTION_STATE_VECTOR2F };
-        checkXRResult(xrGetActionStateVector2f(m_session, &getSelectInfo, &newState.inMenu.navigate), "Failed to get select action value!");
+        getSelectInfo.action = m_selectAction;
+        newState.inMenu.select = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getSelectInfo, &newState.inMenu.select), "Failed to get select action value!");
 
         XrActionStateGetInfo getBackInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getBackInfo.action = m_backAction;
-        newState.inMenu.select = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getBackInfo, &newState.inMenu.select), "Failed to get back action value!");
+        newState.inMenu.back = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getBackInfo, &newState.inMenu.back), "Failed to get back action value!");
 
         XrActionStateGetInfo getSortInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getSortInfo.action = m_sortAction;
-        newState.inMenu.back = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getSortInfo, &newState.inMenu.back), "Failed to get sort action value!");
+        newState.inMenu.sort = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getSortInfo, &newState.inMenu.sort), "Failed to get sort action value!");
 
         XrActionStateGetInfo getHoldInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getHoldInfo.action = m_holdAction;
-        newState.inMenu.sort = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getHoldInfo, &newState.inMenu.sort), "Failed to get hold action value!");
+        newState.inMenu.hold = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getHoldInfo, &newState.inMenu.hold), "Failed to get hold action value!");
 
         XrActionStateGetInfo getLeftTriggerInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getLeftTriggerInfo.action = m_leftTriggerAction;
