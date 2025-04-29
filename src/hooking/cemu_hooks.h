@@ -19,10 +19,6 @@ public:
         checkAssert(s_memoryBaseAddress != 0, "Failed to get memory base address of Cemu process!");
 
         osLib_registerHLEFunction("coreinit", "hook_UpdateSettings", &hook_UpdateSettings);
-        osLib_registerHLEFunction("coreinit", "hook_UpdateCameraPositionAndTarget", &hook_UpdateCameraPositionAndTarget);
-        osLib_registerHLEFunction("coreinit", "hook_UpdateCameraRotation", &hook_UpdateCameraRotation);
-        osLib_registerHLEFunction("coreinit", "hook_UpdateCameraOffset", &hook_UpdateCameraOffset);
-        osLib_registerHLEFunction("coreinit", "hook_CalculateCameraAspectRatio", &hook_CalculateCameraAspectRatio);
         osLib_registerHLEFunction("coreinit", "hook_CreateNewScreen", &hook_CreateNewScreen);
         osLib_registerHLEFunction("coreinit", "hook_UpdateActorList", &hook_UpdateActorList);
         osLib_registerHLEFunction("coreinit", "hook_CreateNewActor", &hook_CreateNewActor);
@@ -54,10 +50,6 @@ private:
     static std::atomic_uint32_t s_framesSinceLastCameraUpdate;
 
     static void hook_UpdateSettings(PPCInterpreter_t* hCPU);
-    static void hook_UpdateCameraPositionAndTarget(PPCInterpreter_t* hCPU);
-    static void hook_UpdateCameraRotation(PPCInterpreter_t* hCPU);
-    static void hook_UpdateCameraOffset(PPCInterpreter_t* hCPU);
-    static void hook_CalculateCameraAspectRatio(PPCInterpreter_t* hCPU);
 
     static void hook_CreateNewScreen(PPCInterpreter_t* hCPU);
     static void hook_UpdateActorList(PPCInterpreter_t* hCPU);

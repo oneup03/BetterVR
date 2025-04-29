@@ -430,7 +430,6 @@ void CemuHooks::updateFrames() {
 
 extern glm::fvec3 g_lookAtPos;
 extern glm::fquat g_lookAtQuat;
-extern OpenXR::EyeSide s_currentEye;
 
 // glm::fquat rotateHorizontalCounter = glm::quat(glm::vec3(0.0f, glm::pi<float>(), 0.0f));
 
@@ -596,27 +595,28 @@ void CemuHooks::hook_modifyHandModelAccessSearch(PPCInterpreter_t* hCPU) {
 void CemuHooks::hook_CreateNewActor(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    if (VRManager::instance().XR->GetRenderer() == nullptr || VRManager::instance().XR->GetRenderer()->m_layer3D.GetStatus() == RND_Renderer::Layer3D::Status3D::UNINITIALIZED) {
-        hCPU->gpr[3] = 0;
-        return;
-    }
+    // if (VRManager::instance().XR->GetRenderer() == nullptr || VRManager::instance().XR->GetRenderer()->m_layer3D.GetStatus() == RND_Renderer::Layer3D::Status3D::UNINITIALIZED) {
+    //     hCPU->gpr[3] = 0;
+    //     return;
+    // }
+    hCPU->gpr[3] = 0;
 
-    OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
-    if (!inputs.inGame.in_game) {
-        hCPU->gpr[3] = 0;
-        return;
-    }
-
-    // test if controller is connected
-    if (inputs.inGame.grab[OpenXR::EyeSide::LEFT].currentState == XR_TRUE && inputs.inGame.grab[OpenXR::EyeSide::LEFT].changedSinceLastSync == XR_TRUE) {
-        Log::print("Trying to spawn new thing!");
-        hCPU->gpr[3] = 1;
-    }
-    else if (inputs.inGame.grab[OpenXR::EyeSide::RIGHT].currentState == XR_TRUE && inputs.inGame.grab[OpenXR::EyeSide::RIGHT].changedSinceLastSync == XR_TRUE) {
-        Log::print("Trying to spawn new thing!");
-        hCPU->gpr[3] = 1;
-    }
-    else {
-        hCPU->gpr[3] = 0;
-    }
+    // OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
+    // if (!inputs.inGame.in_game) {
+    //     hCPU->gpr[3] = 0;
+    //     return;
+    // }
+    //
+    // // test if controller is connected
+    // if (inputs.inGame.grab[OpenXR::EyeSide::LEFT].currentState == XR_TRUE && inputs.inGame.grab[OpenXR::EyeSide::LEFT].changedSinceLastSync == XR_TRUE) {
+    //     Log::print("Trying to spawn new thing!");
+    //     hCPU->gpr[3] = 1;
+    // }
+    // else if (inputs.inGame.grab[OpenXR::EyeSide::RIGHT].currentState == XR_TRUE && inputs.inGame.grab[OpenXR::EyeSide::RIGHT].changedSinceLastSync == XR_TRUE) {
+    //     Log::print("Trying to spawn new thing!");
+    //     hCPU->gpr[3] = 1;
+    // }
+    // else {
+    //     hCPU->gpr[3] = 0;
+    // }
 }

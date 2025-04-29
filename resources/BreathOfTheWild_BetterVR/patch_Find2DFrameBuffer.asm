@@ -27,6 +27,13 @@ lfs f2, magic2DColorValue@l+0x4(r3)
 lfs f3, magic2DColorValue@l+0x8(r3)
 lfs f4, magic2DColorValue@l+0xC(r3)
 
+; ignore the left eye since the right eye will be newer
+lis r3, currentEyeSide@ha
+lwz r3, currentEyeSide@l(r3)
+cmpwi r3, 0
+beq skipClearing2DColorBuffer
+
+; clear the GX2 texture for the right eye, which translates to a vkCmdClearColorImage call that identifies the Vulkan image
 mr r3, r30 ; r3 is now the agl::RenderBuffer object
 cmpwi r3, 0
 beq skipClearing2DColorBuffer

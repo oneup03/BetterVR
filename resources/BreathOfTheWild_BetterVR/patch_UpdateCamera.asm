@@ -3,7 +3,6 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
-
 currentEyeSide:
 .int 0
 
@@ -591,6 +590,8 @@ addi r3, r3, sDefaultCameraMatrix@l
 cmpwi r0, 0
 beqlr
 mr r3, r0
+lis r11, currentEyeSide@ha
+lwz r11, currentEyeSide@l(r11)
 lis r12, modifiedCopy_seadLookAtCamera@ha
 addi r12, r12, modifiedCopy_seadLookAtCamera@l
 ba import.coreinit.hook_GetRenderCamera
@@ -645,6 +646,8 @@ addi r3, r3, sDefaultSeadProjection@l
 cmpwi r12, 0
 beqlr
 mr r3, r12
+lis r12, currentEyeSide@ha
+lwz r0, currentEyeSide@l(r12)
 lis r12, modifiedCopy_seadPerspectiveProjection@ha
 addi r12, r12, modifiedCopy_seadPerspectiveProjection@l
 ba import.coreinit.hook_GetRenderProjection

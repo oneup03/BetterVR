@@ -219,10 +219,6 @@ void Texture::d3d12TransitionLayout(ID3D12GraphicsCommandList* cmdList, D3D12_RE
     cmdList->ResourceBarrier(1, &barrier);
 }
 
-bool Texture::CopyFromSharedTexture(ID3D12GraphicsCommandList* cmdList, SharedTexture* texture) {
-    return false;
-}
-
 SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat, DXGI_FORMAT d3d12Format): Texture(width, height, d3d12Format), BaseVulkanTexture(width, height, vkFormat) {
     const auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
 

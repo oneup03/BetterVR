@@ -87,13 +87,12 @@ public:
     void CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding);
     void CreateActions();
     std::array<XrViewConfigurationView, 2> GetViewConfigurations();
-    void UpdateTime(EyeSide side, XrTime predictedDisplayTime);
+    void UpdateTime(XrTime predictedDisplayTime);
     std::optional<XrSpaceLocation> UpdateSpaces(XrTime predictedDisplayTime);
     void UpdateActions(XrTime predictedFrameTime, bool inMenu);
     void ProcessEvents();
 
     XrSession GetSession() { return m_session; }
-    XrView GetPredictedView(EyeSide side) { return m_updatedViews[side]; };
     RND_Renderer* GetRenderer() { return m_renderer.get(); }
 
 private:

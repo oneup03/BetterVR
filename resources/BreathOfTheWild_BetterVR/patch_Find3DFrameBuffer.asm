@@ -7,6 +7,9 @@ magic3DColorValue:
 .float (0.0 / 32.0)
 .float 0.123456789
 .float 0.987654321
+magic3DColorValue_leftSide:
+.float 0.0
+magic3DColorValue_rightSide:
 .float 1.0
 
 clear3DColorBuffer:
@@ -24,8 +27,17 @@ lis r3, magic3DColorValue@ha
 lfs f1, magic3DColorValue@l+0x0(r3)
 lfs f2, magic3DColorValue@l+0x4(r3)
 lfs f3, magic3DColorValue@l+0x8(r3)
-lfs f4, magic3DColorValue@l+0xC(r3)
 
+lis r3, currentEyeSide@ha
+lwz r3, currentEyeSide@l(r3)
+cmpwi r3, 0
+lis r3, magic3DColorValue_leftSide@ha
+lfs f4, magic3DColorValue_leftSide@l(r3)
+beq continueWithClear
+lis r3, magic3DColorValue_rightSide@ha
+lfs f4, magic3DColorValue_rightSide@l(r3)
+
+continueWithClear:
 mr r3, r26
 addi r3, r3, 0x1C ; r3 is now the agl::RenderBuffer::mColorBuffer array
 lwz r3, 0(r3) ; r3 is now the agl::RenderBuffer::mColorBuffer[0] object
@@ -64,6 +76,9 @@ stw r5, 0x18(r1)
 lis r3, magic3DDepthValue@ha
 lfs f1, magic3DDepthValue@l+0x0(r3)
 li r4, 1
+lis r5, currentEyeSide@ha
+lwz r5, currentEyeSide@l(r5)
+add r4, r4, r5
 li r5, 3
 
 mr r3, r26

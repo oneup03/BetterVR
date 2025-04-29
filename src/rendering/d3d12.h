@@ -109,8 +109,8 @@ public:
         }
 
         ID3D12GraphicsCommandList* GetRecordList() { return this->m_cmdList.Get(); }
-        void WaitFor(class Texture* texture, uint64_t value) { this->m_waitFor.push_back({ texture, value }); }
-        void Signal(class Texture* texture, uint64_t value) { this->m_signalTo.push_back({ texture, value }); }
+        void WaitFor(Texture* texture, uint64_t value) { this->m_waitFor.push_back({ texture, value }); }
+        void Signal(Texture* texture, uint64_t value) { this->m_signalTo.push_back({ texture, value }); }
 
     private:
         ID3D12Device* m_device;
@@ -118,8 +118,8 @@ public:
 
         ComPtr<ID3D12GraphicsCommandList> m_cmdList;
         ComPtr<ID3D12Fence> m_blockFence;
-        std::vector<std::pair<class Texture*, uint64_t>> m_waitFor;
-        std::vector<std::pair<class Texture*, uint64_t>> m_signalTo;
+        std::vector<std::pair<Texture*, uint64_t>> m_waitFor;
+        std::vector<std::pair<Texture*, uint64_t>> m_signalTo;
     };
 
 private:
@@ -127,8 +127,4 @@ private:
     ComPtr<ID3D12CommandQueue> m_queue;
     ComPtr<ID3D12CommandAllocator> m_allocator;
     ComPtr<ID3D12Fence> m_fence;
-
-    //ComPtr<ID3D12Fence> m_fence;
-    //HANDLE m_fenceEvent;
-    //uint64_t m_fenceValue;
 };

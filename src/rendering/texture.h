@@ -57,7 +57,6 @@ public:
     void d3d12SignalFence(uint64_t value);
     void d3d12WaitForFence(uint64_t value);
     void d3d12TransitionLayout(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES state);
-    bool CopyFromSharedTexture(ID3D12GraphicsCommandList* cmdList, SharedTexture* texture);
 
     ID3D12Resource* d3d12GetTexture() const { return m_d3d12Texture.Get(); }
     DXGI_FORMAT d3d12GetFormat() const { return m_d3d12Format; }
@@ -70,7 +69,6 @@ protected:
 
     HANDLE m_d3d12FenceHandle = nullptr;
     ComPtr<ID3D12Fence> m_d3d12Fence;
-    uint64_t m_fenceValue = 0;
 };
 
 class SharedTexture : public Texture, public BaseVulkanTexture {
@@ -83,4 +81,5 @@ public:
 
 private:
     VkSemaphore m_vkSemaphore = VK_NULL_HANDLE;
+    std::atomic_bool m_activeOperation = false;
 };

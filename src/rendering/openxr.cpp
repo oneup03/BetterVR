@@ -490,15 +490,9 @@ void OpenXR::UpdateActions(XrTime predictedFrameTime, bool inMenu) {
     this->m_input.store(newState);
 }
 
-bool firstInit = true;
-void OpenXR::UpdateTime(EyeSide side, XrTime predictedDisplayTime) {
-    if (firstInit) {
-        firstInit = false;
-        m_frameTimes[EyeSide::LEFT] = predictedDisplayTime;
-        m_frameTimes[EyeSide::RIGHT] = predictedDisplayTime;
-        return;
-    }
-    m_frameTimes[side] = predictedDisplayTime;
+void OpenXR::UpdateTime(XrTime predictedDisplayTime) {
+    m_frameTimes[OpenXR::EyeSide::LEFT] = predictedDisplayTime;
+    m_frameTimes[OpenXR::EyeSide::RIGHT] = predictedDisplayTime;
 }
 
 std::optional<XrSpaceLocation> OpenXR::UpdateSpaces(XrTime predictedDisplayTime) {
