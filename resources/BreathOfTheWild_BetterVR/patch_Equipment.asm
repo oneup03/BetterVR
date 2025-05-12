@@ -72,7 +72,7 @@ li r6, 160
 ; r7 is a pointer to the weapons's modifier. Can use 0 for none.
 li r7, 0
 
-bl requestCreateWeapon
+;bl requestCreateWeapon
 
 ; LR
 lwz r3, 0x40(r1)

@@ -84,6 +84,8 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         return state.currentState ? mapping : 0;
     };
 
+    Log::print("[CEMU] Injecting XR input into VPAD in LR {:08X}", hCPU->sprNew.LR);
+
     // read existing vpad as to not overwrite it
     uint32_t vpadStatusOffset = hCPU->gpr[4];
     VPADStatus vpadStatus = {};
@@ -104,7 +106,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
 
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.jump, VPAD_BUTTON_X);
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.cancel, VPAD_BUTTON_B);
-        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.interact, VPAD_BUTTON_A);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.interact, VPAD_BUTTON_Y);
 
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.grab[0], VPAD_BUTTON_A);
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.grab[1], VPAD_BUTTON_A);

@@ -562,4 +562,4 @@ enum class ScreenId {
 #include "utils/logger.h"
 
 constexpr uint32_t SEMAPHORE_TO_VULKAN = 0;
-constexpr uint32_t SEMAPHORE_TO_D3D12 = 0;
+constexpr uint32_t SEMAPHORE_TO_D3D12 = 1;

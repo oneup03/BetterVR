@@ -7,31 +7,42 @@ version = 7
 default = 1
 
 [Default]
-$cameraMode:int = 0
+$cameraMode:int = 1
 $guiFollowMode:int = 1
 $cropFlatTo16_9:int = 1
 
 $cameraDistance = 0.5
 $cameraHeight = -0.5
 $linkOpacity = 1.0
+$allowGamepadInput:int = 1
 
 
 # Camera Mode
 
 [Preset]
-name = Third-Person Camera (Default)
+name = Third-Person Camera (Most Stable And Casual, Seated Recommended)
 category = Camera Mode
 $cameraMode = 0
 $linkOpacity = 1.0
 
 [Preset]
-name = First-Person Camera
+name = First-Person Camera (Coolest And Most Immersive, Standing Recommended)
 category = Camera Mode
 default = 1
 $cameraMode = 1
 $linkOpacity = 0.0
 $cameraDistance = 0.0
 
+[Preset]
+name = Use Both VR Motion Controls And Wii U Gamepad Input (Recommended)
+category = Motion & Gamepad Controls
+default = 1
+$allowGamepadInput:int = 1
+
+[Preset]
+name = Only Use VR Controllers (some inputs might be unavailable and require the gamepad)
+category = Motion & Gamepad Controls
+$allowGamepadInput:int = 0
 
 # GUI Follow Mode
 
@@ -125,5 +136,4 @@ $cropFlatTo16_9:int = 1
 name = Disabled (Higher Resolution)
 category = Crop 3D Game World To 16:9
 $cropFlatTo16_9:int = 0
-
 

@@ -32,6 +32,8 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_GetRenderCamera", &hook_GetRenderCamera);
         osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole", &hook_OSReportToConsole);
         osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole2", &hook_OSReportToConsole2);
+        osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole3", &hook_OSReportToConsole3);
+        osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole4", &hook_OSReportToConsole4);
 
         osLib_registerHLEFunction("coreinit", "hook_updateCameraOLD", &hook_updateCameraOLD);
     };
@@ -69,6 +71,8 @@ private:
     static void hook_GetRenderProjection(PPCInterpreter_t* hCPU);
     static void hook_OSReportToConsole(PPCInterpreter_t* hCPU);
     static void hook_OSReportToConsole2(PPCInterpreter_t* hCPU);
+    static void hook_OSReportToConsole3(PPCInterpreter_t* hCPU);
+    static void hook_OSReportToConsole4(PPCInterpreter_t* hCPU);
     static void hook_EndCameraSide(PPCInterpreter_t* hCPU);
 
     static void updateFrames();

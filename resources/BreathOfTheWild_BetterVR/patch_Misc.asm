@@ -13,12 +13,12 @@ moduleMatches = 0x6267BFD0
 
 
 ; Always have the weapons be physically active
-0x024AA7D0 = nop
-0x024AA7E0 = nop
-0x024AA7E8 = nop
+0x024AA7D0 = nop ; keeps weapon active
+0x024AA7E0 = nop ; keeps weapon active
+0x024AA7E8 = nop ; keeps weapon active
 
-0x024AA838 = li r12, 1
-0x024AA850 = nop
+0x024AA838 = li r12, 1 ; Weapon::isActive or smth
+0x024AA850 = nop ; Weapon::doAttachMaybe_inner0_0
 
 
 ; disables all collisions (from camera presumably)

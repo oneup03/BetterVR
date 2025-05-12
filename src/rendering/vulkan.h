@@ -66,6 +66,7 @@ public:
         void Render();
         void DrawOverlayToImage(VkCommandBuffer cb, VkImage destImage);
 
+        bool m_initialized = false;
     private:
 #ifdef ENABLE_DEBUG_INSPECTOR
         void UpdateControls(POINT p);

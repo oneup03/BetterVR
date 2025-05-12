@@ -212,6 +212,8 @@ RND_Vulkan::ImGuiOverlay::~ImGuiOverlay() {
 constexpr ImGuiWindowFlags FULLSCREEN_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
 void RND_Vulkan::ImGuiOverlay::BeginFrame() {
+    m_initialized = true;
+
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
     if (m_mainFramebufferDescriptorSet == VK_NULL_HANDLE) {
@@ -274,6 +276,7 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
 }
 
 void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio) {
+    // Log::print("Drawing 3D layer as background with aspect ratio {}, and isRendering3D {}", aspectRatio, VRManager::instance().XR->GetRenderer()->IsRendering3D());
     m_mainFramebuffer->vkPipelineBarrier(cb);
     m_mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
     m_mainFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 1.0f });

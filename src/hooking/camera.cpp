@@ -39,9 +39,21 @@ void CemuHooks::hook_BeginCameraSide(PPCInterpreter_t* hCPU) {
 
     bool layersInitialized = VRManager::instance().XR->GetRenderer()->m_layer3D && VRManager::instance().XR->GetRenderer()->m_layer2D;
     if (layersInitialized && side == OpenXR::EyeSide::LEFT) {
+        if (VRManager::instance().VK->m_imguiOverlay) {
+            VRManager::instance().VK->m_imguiOverlay->BeginFrame();
+            VRManager::instance().VK->m_imguiOverlay->Update();
+        }
         VRManager::instance().XR->GetRenderer()->StartFrame();
     }
 }
+
+// TODO FOR NEXT TIME: We change GetRenderCamera() in all cases, but this apparently even causes the camera to be based off of it despite us changing the
+// TODO FOR NEXT TIME: Should see if we could disable the double input pulling. We could do it only for the right frame.
+// TODO FOR NEXT TIME: I actually wrote down a bunch of addresses for the camera following. At least hooking these to have a camera that is rotated would solve the issue of walking without a head.
+
+// 0x02b8f508 = li r3, 0
+// 0x02B8F508 = li r3, 0
+// 0x2B9B930 = li r3, 0
 
 void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
@@ -53,14 +65,29 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     readMemory(cameraIn, &camera);
 
     if (camera.pos.x.getLE() != 0.0f) {
-        Log::print("[PPC] Getting render camera for {} side", cameraSide == OpenXR::EyeSide::LEFT ? "left" : "right");
+        // Log::print("[PPC] Getting render camera for {} side", cameraSide == OpenXR::EyeSide::LEFT ? "left" : "right");
+
+        if (std::fabs(camera.at.z.getLE()) < std::numeric_limits<float>::epsilon()) {
+            return;
+        }
+        // Log::print("[PPC] GetRenderCamera() (LR = {:08X}) = {} ", hCPU->sprNew.LR, camera);
 
         // in-game camera
         glm::mat3x4 originalMatrix = camera.mtx.getLEMatrix();
         glm::mat4 viewGame = glm::transpose(originalMatrix);
         glm::mat4 worldGame = glm::inverse(viewGame);
-        glm::quat baseRot  = glm::quat_cast(worldGame);
-        glm::vec3 basePos  = glm::vec3(worldGame[3]) + glm::vec3(0.0f, GetSettings().playerHeightSetting.getLE(), 0.0f);
+        glm::quat baseRot = glm::quat_cast(worldGame);
+
+        // force camera to never tilt down
+        glm::vec3 fwd = baseRot * glm::vec3(0, 0, -1);
+        fwd.y = 0.0f;
+        if (glm::length2(fwd) > 0.0001f)
+            fwd = glm::normalize(fwd);
+        else
+            fwd = glm::vec3(0, 0, -1);
+        baseRot = glm::quatLookAt(fwd, glm::vec3(0, 1, 0));
+
+        glm::vec3 basePos = glm::vec3(worldGame[3]) + glm::vec3(0.0f, GetSettings().playerHeightSetting.getLE(), 0.0f);
 
         // vr camera
         if (!VRManager::instance().XR->GetRenderer()->GetPose(cameraSide).has_value()) {
@@ -149,8 +176,15 @@ void CemuHooks::hook_GetRenderProjection(PPCInterpreter_t* hCPU) {
     if (projection.__vftable == seadPerspectiveProjection) {
         BESeadPerspectiveProjection perspectiveProjection = {};
         readMemory(projectionIn, &perspectiveProjection);
+
+        if (perspectiveProjection.zFar == 10000.0f) {
+            // Log::print("[PPC] Getting render projection for {} side", side == OpenXR::EyeSide::LEFT ? "left" : "right");
+            // Log::print("[PPC] Getting render projection (LR: {:08X}): {}", hCPU->sprNew.LR, perspectiveProjection);
+            return;
+        }
+
         // Log::print("Render Proj. (LR: {:08X}): {}", hCPU->sprNew.LR, perspectiveProjection);
-        Log::print("[PPC] Getting render projection for {} side", side == OpenXR::EyeSide::LEFT ? "left" : "right");
+        // Log::print("[PPC] Getting render projection for {} side", side == OpenXR::EyeSide::LEFT ? "left" : "right");
 
         if (!VRManager::instance().XR->GetRenderer()->GetFOV(side).has_value()) {
             return;
@@ -219,6 +253,44 @@ void CemuHooks::hook_OSReportToConsole2(PPCInterpreter_t* hCPU) {
     if (str[0] != '\0') {
         uint32_t arg1 = hCPU->gpr[4];
         Log::print(str, arg1);
+    }
+}
+
+void CemuHooks::hook_OSReportToConsole3(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    uint32_t strPtr = hCPU->gpr[3];
+    if (strPtr == 0) {
+        return;
+    }
+    char* str = (char*)(s_memoryBaseAddress + strPtr);
+    if (str == nullptr) {
+        return;
+    }
+    if (str[0] != '\0') {
+        uint32_t arg1 = hCPU->gpr[4];
+        uint32_t arg2 = hCPU->gpr[5];
+        char* arg3 = (char*)(s_memoryBaseAddress + hCPU->gpr[6]);
+        uint32_t arg4 = hCPU->gpr[7];
+        Log::print(str, arg1, arg2, arg3, arg4);
+    }
+}
+
+void CemuHooks::hook_OSReportToConsole4(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    uint32_t strPtr = hCPU->gpr[3];
+    if (strPtr == 0) {
+        return;
+    }
+    char* str = (char*)(s_memoryBaseAddress + strPtr);
+    if (str == nullptr) {
+        return;
+    }
+    if (str[0] != '\0') {
+        uint32_t arg1 = hCPU->gpr[4];
+        uint32_t arg2 = hCPU->gpr[5];
+        Log::print(str, arg1, arg2);
     }
 }
 

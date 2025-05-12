@@ -82,118 +82,117 @@ mtlr r0
 addi r1, r1, 0x40 ; this was set to 0x10 before, but that makes no sense?
 blr
 
+; =======================================================================================================================
 
 
+formatLayer3DDrawingStepsStr:
+.string "gsys::Layer3D::draw( this = {:08X}, step = {} )"
 
+logLayer3DDrawSteps:
+mflr r11
+stwu r1, -0x20(r1)
+stw r11, 0x24(r1)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+stw r6, 0x10(r1)
+stw r7, 0x0C(r1)
+stw r8, 0x08(r1)
 
+lwz r11, 0x0(r30) ; original instruction
 
+lis r3, formatLayer3DDrawingStepsStr@ha
+addi r3, r3, formatLayer3DDrawingStepsStr@l
+lwz r4, 0x1C(r1)
+mr r5, r11
+bla import.coreinit.hook_OSReportToConsole4
 
+lwz r8, 0x08(r1)
+lwz r7, 0x0C(r1)
+lwz r6, 0x10(r1)
+lwz r5, 0x14(r1)
+lwz r4, 0x18(r1)
+lwz r3, 0x1C(r1)
+lwz r11, 0x24(r1)
+addi r1, r1, 0x20
+mtlr r11
 
-
-
-0x397A9CC = jumpBranchStart:
-0x1047EC78 = agl__lyr__Renderer__sInstance:
-
-drawInstanceIdx:
-.int 1
-
-newLineFormat:
-.string "Rendering layer {}..."
-.align 4
-
-registerR0:
-.int 0
-registerR3:
-.int 0
-registerR4:
-.int 0
-registerR5:
-.int 0
-registerR6:
-.int 0
-registerR7:
-.int 0
-registerR8:
-.int 0
-
-selectiveDrawRendering:
-lwz r11, 0(r30)
-
-; === Print stuff ===
-lis r12, registerR3@ha
-stw r3, registerR3@l(r12)
-lis r12, registerR4@ha
-stw r4, registerR4@l(r12)
-lis r12, registerR5@ha
-stw r5, registerR5@l(r12)
-lis r12, registerR6@ha
-stw r6, registerR6@l(r12)
-lis r12, registerR7@ha
-stw r7, registerR7@l(r12)
-lis r12, registerR8@ha
-stw r8, registerR8@l(r12)
-
-lis r3, newLineFormat@ha
-addi r3, r3, newLineFormat@l
-mr r4, r11
-mflr r5
-bl import.coreinit.hook_OSReportToConsole2
-mtlr r5
-
-lis r12, registerR3@ha
-lwz r3, registerR3@l(r12)
-lis r12, registerR4@ha
-lwz r4, registerR4@l(r12)
-lis r12, registerR5@ha
-lwz r5, registerR5@l(r12)
-lis r12, registerR6@ha
-lwz r6, registerR6@l(r12)
-lis r12, registerR7@ha
-lwz r7, registerR7@l(r12)
-lis r12, registerR8@ha
-lwz r8, registerR8@l(r12)
-; === Print stuff ===
-
-; r11 holds current draw rendering step number
-cmpwi r11, 10
-bne checkIfSkip
-
-endOfFrame:
-lis r12, drawInstanceIdx@ha
-lwz r12, drawInstanceIdx@l(r12)
-cmpwi r12, 1
-beq endOfFrameReset
-
-endOfFrameIterate:
-li r0, 1
-b dontSkip ; b checkIfSkip
-
-endOfFrameReset:
-li r0, 0
-b doSkips
-
-
-checkIfSkip:
-lis r12, drawInstanceIdx@ha
-lwz r12, drawInstanceIdx@l(r12)
-cmpwi r12, 1
-beq dontSkip
-
-doSkips:
-# cmpwi r11, 4
-# bne .+0x08
-# li r11, 3
-# cmpwi r11, 4
-# bne .+0x08
-# li r12, 3
-# cmpwi r11, 5
-# bne .+0x08
-# li r12, 3
-
-
-dontSkip:
-lis r12, agl__lyr__Renderer__sInstance@ha
-lwz r12, agl__lyr__Renderer__sInstance@l(r12)
+lwz r11, 0x0(r30) ; original instruction
 blr
 
-0x0397A9A0 = bla selectiveDrawRendering
+0x0397A9A0 = bla logLayer3DDrawSteps
+
+; =======================================================================================================================
+
+format_layerJobStr:
+.string "agl::lyr::LayerJob::pushBackTo( this = {:08X}, layer = {:08X}, layerName = {}, renderDisplay = {:08X} )"
+
+unknownLayerNameStr:
+.string "Unknown Layer Name"
+
+hook_lyr_LayerJob_pushbackJob:
+stw r4, 0x14(r3)
+
+mflr r4
+stwu r1, -0x20(r1)
+stw r4, 0x24(r1)
+lwz r4, 0x1C(r3)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+stw r6, 0x10(r1)
+stw r7, 0x0C(r1)
+stw r8, 0x08(r1)
+
+lwz r4, 0x1C(r1)
+lwz r5, 0x10(r4)
+cmpwi r5, 0
+lis r6, unknownLayerNameStr@ha
+addi r6, r6, unknownLayerNameStr@l
+beq dontReadLayerName
+addi r6, r5, 0x9C ; layer name
+
+dontReadLayerName:
+lis r3, format_layerJobStr@ha
+addi r3, r3, format_layerJobStr@l
+lwz r4, 0x1C(r1)
+lwz r7, 0x14(r4)
+; r3 = format_layerJobStr
+; r4 = LayerJob* this
+; r5 = LayerJob->layer*
+; r6 = LayerJob->layer->name*
+; r7 = LayerJob->renderDisplay*
+bla import.coreinit.hook_OSReportToConsole3
+
+lwz r3, 0x1C(r1)
+lwz r4, 0x18(r1)
+lwz r5, 0x14(r1)
+lwz r6, 0x10(r1)
+lwz r7, 0x0C(r1)
+lwz r8, 0x08(r1)
+lwz r4, 0x24(r1)
+addi r1, r1, 0x20
+mtlr r4
+
+cmpwi r6, 0
+stw r5, 0x18(r3)
+beq loc_3B4B4E0
+lwz r12, 0(r6)
+lwz r0, 4(r6)
+cmpw r12, r0
+bgelr
+lwz r0, 8(r6)
+slwi r10, r12, 2
+stwx r3, r10, r0
+lwz r12, 0(r6)
+addi r12, r12, 1
+stw r12, 0(r6)
+blr
+loc_3B4B4E0:
+lwz r12, 8(r3)
+lwz r10, 0x14(r12)
+mtctr r10
+bctr # agl__lyr__LayerJob__invoke
+blr
+
+0x03B4B4A4 = ba hook_lyr_LayerJob_pushbackJob
