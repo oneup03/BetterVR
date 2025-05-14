@@ -22,27 +22,6 @@ public:
         bool supportsMutatableFOV;
     } m_capabilities = {};
 
-    // struct Input {
-    //     struct Controller {
-    //         XrActionStateBoolean select;
-    //         XrActionStateBoolean grab;
-    //
-    //         XrActionStatePose pose;
-    //         XrSpace poseSpace;
-    //         XrSpaceLocation poseLocation;
-    //     };
-    //
-    //     XrActionStateVector2f move;
-    //     XrActionStateVector2f camera;
-    //     XrActionStateBoolean jump;
-    //     XrActionStateBoolean cancel;
-    //
-    //     XrActionStateBoolean map;
-    //     XrActionStateBoolean menu;
-    //
-    //     std::array<Controller, 2> controllers;
-    // } m_input = {};
-
     union InputState {
         struct InGame {
             bool in_game = true;

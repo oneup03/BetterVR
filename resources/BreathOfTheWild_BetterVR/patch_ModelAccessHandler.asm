@@ -34,7 +34,7 @@ bne exit_logModelAccessSearch
 ; log model access search
 replaceAndLog:
 lwz r3, 0x00(r5)
-bl import.coreinit.hook_modifyHandModelAccessSearch
+bl import.coreinit.hook_ModifyHandModelAccessSearch
 
 lis r5, str_head_SafeStringStart@ha
 addi r5, r5, str_head_SafeStringStart@l

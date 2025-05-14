@@ -68,7 +68,12 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                     layer2D = std::make_unique<RND_Renderer::Layer2D>(it->second.first);
 
                     // Log::print("Found rendering resolution {}x{} @ {} using capture #{}", it->second.first.width, it->second.first.height, it->second.second, captureIdx);
-                    imguiOverlay = std::make_unique<RND_Vulkan::ImGuiOverlay>(commandBuffer, it->second.first.width, it->second.first.height, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
+                    if (CemuHooks::GetSettings().Is2DVRViewEnabled()) {
+                        imguiOverlay = std::make_unique<RND_Vulkan::ImGuiOverlay>(commandBuffer, it->second.first.width, it->second.first.height, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
+                        if (CemuHooks::GetSettings().ShowDebugOverlay()) {
+                            VRManager::instance().Hooks->m_entityDebugger = std::make_unique<EntityDebugger>();
+                        }
+                    }
                 }
                 else {
                     checkAssert(false, "Couldn't find image resolution in map!");
@@ -331,12 +336,10 @@ VkResult VkDeviceOverrides::QueueSubmit(const vkroots::VkDeviceDispatch* pDispat
                         modifiedSubmitInfo.timelineWaitValues.emplace_back(SEMAPHORE_TO_VULKAN);
 
 #if defined(_DEBUG)
-                        wchar_t name[128] = {};
-                        UINT size = sizeof(name);
-                        it->second->d3d12GetTexture()->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
-
-                        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                        std::string nameStr = converter.to_bytes(name);
+                        WCHAR nameChars[128] = {};
+                        UINT size = sizeof(nameChars);
+                        it->second->d3d12GetTexture()->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, nameChars);
+                        std::string nameStr = wcharToUtf8(nameChars);
 
                         Log::print("[VULKAN] Waiting for {} to be 0 inside the cmd buffer {}", nameStr, (void*)submitInfo.pCommandBuffers[j]);
                         Log::print("[VULKAN] Signalling to {} to be 1 inside the cmd buffer {}", nameStr, (void*)submitInfo.pCommandBuffers[j]);
@@ -361,8 +364,7 @@ VkResult VkDeviceOverrides::QueueSubmit(const vkroots::VkDeviceDispatch* pDispat
                     wchar_t name[128] = {};
                     UINT size = sizeof(name);
                     op.second->d3d12GetTexture()->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
-                    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                    std::string nameStr = converter.to_bytes(name);
+                    std::string nameStr = wcharToUtf8(name);
                     Log::print("[VULKAN]   - Command buffer: {}, Texture: {}", (void*)op.first, nameStr);
                 }
                 Log::print("[VULKAN] Submitted command buffers:");

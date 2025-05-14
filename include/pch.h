@@ -67,6 +67,23 @@ inline std::string& toLower(std::string str) {
     return str;
 }
 
+inline uint32_t stringToHash(const char* str) {
+    uint32_t hash = 0;
+    while (*str) {
+        hash = (hash << 7) + *str++;
+    }
+    return hash;
+}
+
+inline std::string wcharToUtf8(const wchar_t* wstr) {
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
+    std::string str(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, &str[0], size_needed, nullptr, nullptr);
+    return str;
+}
+
+#define PADDED_BYTES(from, up) uint8_t byte_##from##[ ## (up-from+0x04) ## ]
+
 template<class T, template<class...> class U>
 inline constexpr bool is_instance_of_v = std::false_type{};
 
@@ -346,8 +363,10 @@ struct BEMatrix44 : BETypeCompatible {
 struct data_VRSettingsIn {
     BEType<int32_t> cameraModeSetting;
     BEType<int32_t> guiFollowSetting;
-    BEType<int32_t> cropFlatTo16x9Setting;
     BEType<float> playerHeightSetting;
+    BEType<int32_t> enable2DVRView;
+    BEType<int32_t> cropFlatTo16x9Setting;
+    BEType<int32_t> enableDebugOverlay;
 
     bool IsFirstPersonMode() const {
         return cameraModeSetting == 0;
@@ -357,8 +376,16 @@ struct data_VRSettingsIn {
         return guiFollowSetting == 1;
     }
 
+    bool Is2DVRViewEnabled() const {
+        return enable2DVRView == 1;
+    }
+
     bool ShouldFlatPreviewBeCroppedTo16x9() const {
         return cropFlatTo16x9Setting == 1;
+    }
+
+    bool ShowDebugOverlay() const {
+        return enableDebugOverlay == 1;
     }
 };
 
@@ -558,6 +585,7 @@ enum class ScreenId {
     ErrorViewerDRC_00 = 0x62,
 };
 
+#include "game_structs.h"
 #include "cemu.h"
 #include "utils/logger.h"
 

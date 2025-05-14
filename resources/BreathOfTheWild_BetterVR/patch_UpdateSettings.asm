@@ -11,12 +11,17 @@ CameraModeSetting:
 GUIFollowModeSetting:
 .int $guiFollowMode
 
-CropFlatTo16_9Setting:
-.int $cropFlatTo16_9
-
 PlayerHeightSetting:
 .float $cameraHeight
 
+Enable2DViewSetting:
+.int $enable2DView
+
+CropFlatTo16_9Setting:
+.int $cropFlatTo16_9
+
+EnableDebugOverlaySetting:
+.int $enableDebugOverlay
 
 vr_updateSettings:
 addi r1, r1, -0x08

@@ -1,4 +1,6 @@
 #include "cemu_hooks.h"
+#include "instance.h"
+#include "hooking/entity_debugger.h"
 
 std::mutex g_settingsMutex;
 data_VRSettingsIn g_settings = {};
@@ -10,10 +12,12 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
     // Log::print("Updated settings!");
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    updateFrames();
-
     uint32_t ppc_settingsOffset = hCPU->gpr[5];
     data_VRSettingsIn settings = {};
+
+    if (auto& debugger = VRManager::instance().Hooks->m_entityDebugger) {
+        debugger->UpdateEntityMemory();
+    }
 
     readMemory(ppc_settingsOffset, &settings);
 

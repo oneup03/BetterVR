@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include "entity_debugger.h"
 
 class CemuHooks {
 public:
@@ -23,13 +24,14 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_UpdateActorList", &hook_UpdateActorList);
         osLib_registerHLEFunction("coreinit", "hook_CreateNewActor", &hook_CreateNewActor);
         osLib_registerHLEFunction("coreinit", "hook_InjectXRInput", &hook_InjectXRInput);
-        osLib_registerHLEFunction("coreinit", "hook_modifyHandModelAccessSearch", &hook_modifyHandModelAccessSearch);
-        osLib_registerHLEFunction("coreinit", "hook_changeWeaponMtx", &hook_changeWeaponMtx);
+        osLib_registerHLEFunction("coreinit", "hook_ModifyHandModelAccessSearch", &hook_ModifyHandModelAccessSearch);
+        osLib_registerHLEFunction("coreinit", "hook_ChangeWeaponMtx", &hook_ChangeWeaponMtx);
 
         osLib_registerHLEFunction("coreinit", "hook_BeginCameraSide", &hook_BeginCameraSide);
         osLib_registerHLEFunction("coreinit", "hook_EndCameraSide", &hook_EndCameraSide);
         osLib_registerHLEFunction("coreinit", "hook_GetRenderProjection", &hook_GetRenderProjection);
         osLib_registerHLEFunction("coreinit", "hook_GetRenderCamera", &hook_GetRenderCamera);
+        osLib_registerHLEFunction("coreinit", "hook_ApplyCameraRotation", &hook_ApplyCameraRotation);
         osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole", &hook_OSReportToConsole);
         osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole2", &hook_OSReportToConsole2);
         osLib_registerHLEFunction("coreinit", "hook_OSReportToConsole3", &hook_OSReportToConsole3);
@@ -44,6 +46,8 @@ public:
     static data_VRSettingsIn GetSettings();
     static uint32_t GetFramesSinceLastCameraUpdate() { return s_framesSinceLastCameraUpdate.load(); }
     static uint64_t GetMemoryBaseAddress() { return s_memoryBaseAddress; }
+
+    std::unique_ptr<EntityDebugger> m_entityDebugger;
 
 private:
     HMODULE m_cemuHandle;
@@ -61,21 +65,21 @@ private:
     static void hook_UpdateActorList(PPCInterpreter_t* hCPU);
     static void hook_CreateNewActor(PPCInterpreter_t* hCPU);
     static void hook_InjectXRInput(PPCInterpreter_t* hCPU);
-    static void hook_modifyHandModelAccessSearch(PPCInterpreter_t* hCPU);
-    static void hook_changeWeaponMtx(PPCInterpreter_t* hCPU);
+    static void hook_ModifyHandModelAccessSearch(PPCInterpreter_t* hCPU);
+    static void hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU);
 
     // todo: remove this in favour of a better tell when the user is updated
     static void hook_updateCameraOLD(PPCInterpreter_t* hCPU);
     static void hook_BeginCameraSide(PPCInterpreter_t* hCPU);
     static void hook_GetRenderCamera(PPCInterpreter_t* hCPU);
     static void hook_GetRenderProjection(PPCInterpreter_t* hCPU);
+    static void hook_ApplyCameraRotation(PPCInterpreter_t* hCPU);
+    static void hook_EndCameraSide(PPCInterpreter_t* hCPU);
+
     static void hook_OSReportToConsole(PPCInterpreter_t* hCPU);
     static void hook_OSReportToConsole2(PPCInterpreter_t* hCPU);
     static void hook_OSReportToConsole3(PPCInterpreter_t* hCPU);
     static void hook_OSReportToConsole4(PPCInterpreter_t* hCPU);
-    static void hook_EndCameraSide(PPCInterpreter_t* hCPU);
-
-    static void updateFrames();
 
 public:
     template <typename T>

@@ -13,13 +13,6 @@ if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Only x64 architecture is supported")
 endif ()
 
-# Project Options
-option(ENABLE_DEBUG_INSPECTOR "Enable the entity debug inspector overlay (adds performance overhead due to tracking entities)" $:<CONFIG:Debug>)
-
-if (ENABLE_DEBUG_INSPECTOR)
-    add_compile_definitions(ENABLE_DEBUG_INSPECTOR=1)
-endif ()
-
 # Set global options
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -64,6 +57,8 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/settings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/hands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/controls.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/entity_debugger.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/entity_debugger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer.cpp

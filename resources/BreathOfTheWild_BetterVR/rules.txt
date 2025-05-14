@@ -2,47 +2,82 @@
 titleIds = 00050000101C9300,00050000101C9400,00050000101C9500
 name = Better VR
 path = "The Legend of Zelda: Breath of the Wild/Better VR"
-description = Used to enable and change VR settings for BetterVR.||Made by Crementif, Postposterous, etra [insert more random people that helped].
+description = Used to enable and change VR settings for BetterVR.||Made by Crementif.
 version = 7
 default = 1
 
 [Default]
 $cameraMode:int = 1
-$guiFollowMode:int = 1
+$allowGamepadInput:int = 1
+$enable2DView:int = 1
 $cropFlatTo16_9:int = 1
+$guiFollowMode:int = 1
 
 $cameraDistance = 0.5
 $cameraHeight = -0.5
 $linkOpacity = 1.0
-$allowGamepadInput:int = 1
+$enableDebugOverlay:int = 0
 
 
 # Camera Mode
 
 [Preset]
-name = Third-Person Camera (Most Stable And Casual, Seated Recommended)
+name = Third-Person Camera (Most Stable & Casual, Seated Recommended)
 category = Camera Mode
 $cameraMode = 0
 $linkOpacity = 1.0
 
 [Preset]
-name = First-Person Camera (Coolest And Most Immersive, Standing Recommended)
+name = First-Person Camera (Most Immersive, Standing Recommended)
 category = Camera Mode
 default = 1
 $cameraMode = 1
 $linkOpacity = 0.0
 $cameraDistance = 0.0
 
+
+# Motion & Gamepad Controls
+
 [Preset]
-name = Use Both VR Motion Controls And Wii U Gamepad Input (Recommended)
+name = Use VR Motion Controls & Wii U Gamepad Input (Recommended)
 category = Motion & Gamepad Controls
 default = 1
 $allowGamepadInput:int = 1
 
 [Preset]
-name = Only Use VR Controllers (some inputs might be unavailable and require the gamepad)
+name = Only Use VR Controllers (some inputs might require the gamepad)
 category = Motion & Gamepad Controls
 $allowGamepadInput:int = 0
+
+
+# Enable 2D VR View
+[Preset]
+name = Enabled (Default, Experimental)
+category = Keep 2D VR View In Cemu Window
+default = 1
+$enable2DView:int = 1
+
+[Preset]
+name = Disabled (May Resolve GPU/Rendering Crashes)
+category = Keep 2D VR View In Cemu Window
+$enable2DView:int = 0
+$enableDebugOverlay:int = 0
+
+
+# 2D Viewer - Crop VR Image To 16:9
+[Preset]
+name = Crop 3D Game World To 16:9 (Recommended)
+category = Keep 2D VR View in Cemu (Might Cause Bugs)
+condition = $enable2DView == 1
+default = 1
+$cropFlatTo16_9:int = 1
+
+[Preset]
+name = Crop 3D Game World To 4:3
+category = Crop VR Image
+condition = $enable2DView == 1
+$cropFlatTo16_9:int = 0
+
 
 # GUI Follow Mode
 
@@ -125,15 +160,17 @@ category = Camera Distance
 condition = $cameraMode == 0
 $cameraDistance = 0.9
 
-# 2D Viewer - Crop VR Image To 16:9
-[Preset]
-name = Crop 3D Game World To 16:9 (Recommended)
-category = Crop VR Image To 16:9
-default = 1
-$cropFlatTo16_9:int = 1
+
+# Debug Overlay
 
 [Preset]
-name = Disabled (Higher Resolution)
-category = Crop 3D Game World To 16:9
-$cropFlatTo16_9:int = 0
+name = Enabled (Might Cause Performance & Crashing Issues)
+category = Enable VR Debugging Overlay (Experimental)
+condition = $enable2DView == 1
+$enableDebugOverlay:int = 1
 
+[Preset]
+name = Disabled (Default)
+category = Enable VR Debugging Overlay (Experimental)
+condition = $enable2DView == 1
+$enableDebugOverlay:int = 0

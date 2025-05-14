@@ -30,7 +30,7 @@ lwz r5, 0x10(r1) ; the target MTX
 addi r6, r29, 0x34 ; the gsysModel->mtx, maybe used for the location?
 addi r7, r31, 0x3C ; the mtx of the item supposedly
 lwz r8, 0x0C(r1) ; the target actor
-bl import.coreinit.hook_changeWeaponMtx
+bl import.coreinit.hook_ChangeWeaponMtx
 
 cmpwi r9, 0
 beq noChangeWeaponMtx

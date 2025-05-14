@@ -64,13 +64,8 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     BESeadLookAtCamera camera = {};
     readMemory(cameraIn, &camera);
 
-    if (camera.pos.x.getLE() != 0.0f) {
+    if (camera.pos.x.getLE() != 0.0f && std::fabs(camera.at.z.getLE()) >= std::numeric_limits<float>::epsilon()) {
         // Log::print("[PPC] Getting render camera for {} side", cameraSide == OpenXR::EyeSide::LEFT ? "left" : "right");
-
-        if (std::fabs(camera.at.z.getLE()) < std::numeric_limits<float>::epsilon()) {
-            return;
-        }
-        // Log::print("[PPC] GetRenderCamera() (LR = {:08X}) = {} ", hCPU->sprNew.LR, camera);
 
         // in-game camera
         glm::mat3x4 originalMatrix = camera.mtx.getLEMatrix();
