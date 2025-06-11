@@ -1,19 +1,23 @@
 #include "../instance.h"
 #include "cemu_hooks.h"
 #include "hands.h"
-// #include "hands.h"
 
 std::array<WeaponMotionAnalyser, 2> CemuHooks::m_motionAnalyzers = {};
 
 static void ModifyWeaponMtxToVRPose(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, glm::fquat cameraRotation, glm::fvec3 cameraPosition) {
-    // convert VR controller info to glm
     OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
+    //auto views = VRManager::instance().XR->GetRenderer()->GetMiddlePosePos();
+    //if (!views.has_value()) {
+    //    return;
+    //}
+
+    glm::fvec3 views = glm::fvec3(0, 0, 0);
 
     glm::fvec3 controllerPos = glm::fvec3(0.0f);
     glm::fquat controllerQuat = glm::identity<glm::fquat>();
 
     if (inputs.inGame.in_game && inputs.inGame.pose[side].isActive) {
-        auto& handPose = side == OpenXR::EyeSide::LEFT ? inputs.inGame.poseLocation[side] : inputs.inGame.poseLocation[side];
+        auto& handPose = inputs.inGame.poseLocation[side];
 
         if (handPose.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) {
             controllerPos = ToGLM(handPose.pose.position);
@@ -25,9 +29,14 @@ static void ModifyWeaponMtxToVRPose(OpenXR::EyeSide side, BEMatrix34& toBeAdjust
 
     // Calculate the rotation
     glm::fquat rotatedControllerQuat = glm::normalize(cameraRotation * controllerQuat);
+
+    glm::fvec3 v_controller = cameraRotation * controllerPos;
+    glm::fvec3 v_cam = cameraRotation * views;
+    glm::fvec3 v_controller_local = v_controller - v_cam;
+
     rotatedControllerQuat = glm::rotate(rotatedControllerQuat, glm::radians(180.0f), glm::fvec3(1.0f, 0.0f, 0.0f));
     rotatedControllerQuat = glm::rotate(rotatedControllerQuat, glm::radians(180.0f), glm::fvec3(0.0f, 0.0f, 1.0f));
-    glm::fmat3 finalMtx = glm::mat3_cast(glm::inverse(rotatedControllerQuat));
+    glm::fmat3 finalMtx = glm::mat3_cast(glm::inverse(rotatedControllerQuat) * glm::inverse(VRManager::instance().XR->m_inputCameraRotation.load()));
 
     toBeAdjustedMtx.x_x = finalMtx[0][0];
     toBeAdjustedMtx.y_x = finalMtx[0][1];
@@ -41,10 +50,10 @@ static void ModifyWeaponMtxToVRPose(OpenXR::EyeSide side, BEMatrix34& toBeAdjust
     toBeAdjustedMtx.y_z = finalMtx[2][1];
     toBeAdjustedMtx.z_z = finalMtx[2][2];
 
-    // Calculate the position
-    // Use player position as the origin since we want to overwrite the weapon position with the VR controller position
-    glm::fvec3 rotatedControllerPos = cameraRotation * controllerPos;
+    glm::fvec3 rotatedControllerPos = v_controller_local * glm::inverse(VRManager::instance().XR->m_inputCameraRotation.load()) + v_cam;
     glm::fvec3 finalPos = cameraPosition + rotatedControllerPos;
+
+    //Log::print("!! camera pos = {} rotation = {}", finalPos, views);
 
     toBeAdjustedMtx.pos_x = finalPos.x;
     toBeAdjustedMtx.pos_y = finalPos.y;

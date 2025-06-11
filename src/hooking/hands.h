@@ -62,7 +62,7 @@ public:
     WeaponMotionAnalyser() = default;
 
     static constexpr int MAX_SAMPLES = 90;
-    static constexpr int BAD_SAMPLES_BUFFER = 3;
+    static constexpr int BAD_SAMPLES_BUFFER = 5;
     static constexpr std::chrono::nanoseconds GOOD_SAMPLES_BEFORE_GOOD_STAB = std::chrono::milliseconds(4);
 
     WeaponProfile profile = SpearProfile();
@@ -93,8 +93,8 @@ public:
         // ----- Find if rotation is towards center of view -----
         const glm::fvec3 pos_rot_axis = glm::cross(headsetRotation * glm::fvec3(0, 0, -1), rotation * glm::fvec3(0, 0, 1)); // cross product from sword x to forward camera axis
         const bool swing_is_forwards = glm::dot(pos_rot_axis, angularVelocity) > 0;
-
-        const float ang = glm::asin(glm::length(pos_rot_axis));
+        //Log::print("!! is forward: {}", swing_is_forwards ? "true" : "false");
+        //const float ang = glm::asin(glm::length(pos_rot_axis));
 
         //Log::print("!! is_attacking: );
         
@@ -103,12 +103,14 @@ public:
         const glm::fvec3 localAngularVelocity = m_rollingSamples[m_lastSampleIdx].rotatedAngularVelocity(); //glm::inverse(rotation) * angularVelocity;
 
         //Log::print("!! position_world: {}", position);
+        //Log::print("!! v_local: {}", localLinearVelocity);
         profile.stab_SpeedThreshold = 1.0f;
-        profile.stab_SteadinessThreshold = glm::cos(glm::pi<float>() / 6); // 10 deg accuracy cone
-        profile.slash_SpeedThreshold = 7.0f;
-        profile.slash_SteadinessThreshold = glm::cos(glm::pi<float>() / 3); // use 45 deg
+        profile.stab_SteadinessThreshold = glm::cos(glm::pi<float>() / 6); // 30 deg accuracy cone
+        profile.stab_travelDistance = 0.15f;
+        profile.slash_SpeedThreshold = 5.0f;
+        profile.slash_SteadinessThreshold = glm::cos(glm::pi<float>() / 3); // use 60 deg
 
-        Log::print("!! steadiness: {} / {}", glm::normalize(localAngularVelocity).y, profile.slash_SteadinessThreshold);
+        //Log::print("!! steadiness: {} / {}", glm::normalize(localAngularVelocity).y, profile.slash_SteadinessThreshold);
         profile.slash_travelAngle = glm::pi<float>() / 6;
         // Detect velocity threshold -> set attack type if not in attack & store original angle/position
         detect_attack_type(localLinearVelocity, localAngularVelocity, position, rotation, swing_is_forwards);
@@ -124,7 +126,7 @@ public:
 
         // Log::print("!! AttackType: {} - IsAttacking = {} - bad_samples: {} - v_world: ({}): ", (int)m_lockedAttackType, IsAttacking() ? "true": "false", m_badSampleCtr, localLinearVelocity);
 
-        m_rollingSamples[m_lastSampleIdx].debug_attackType = m_lockedAttackType;
+        m_rollingSamples[m_lastSampleIdx].debug_attackType = IsAttacking() ? m_lockedAttackType: AttackType::None;
     }
 
     void detect_attack_type(const glm::fvec3 localLinearVelocity, const glm::fvec3 localAngularVelocity, const glm::fvec3 position, const glm::fquat rotation, const bool swing_is_forward) {
@@ -134,20 +136,20 @@ public:
             glm::fvec3 dir_ang = glm::normalize(localAngularVelocity);
             glm::fvec3 stab_ang = glm::normalize(localLinearVelocity);
 
-            if (abs(stab_ang.z) > profile.stab_SteadinessThreshold && -localLinearVelocity.z > profile.stab_SpeedThreshold) {
+            if (abs(- stab_ang.z) > profile.stab_SteadinessThreshold && -localLinearVelocity.z > profile.stab_SpeedThreshold) {
                 m_goodSwingSampleCtr = 0;
+                m_lockedPosition = position;
                 m_goodStabSampleCtr++;
                 if (m_goodStabSampleCtr > 3) {
                     m_lockedAttackType = AttackType::Stab;
-                    m_lockedPosition = position;
                 }
             }
             else if (abs(dir_ang.y) > profile.slash_SteadinessThreshold && abs( - localAngularVelocity.y) > profile.slash_SpeedThreshold && swing_is_forward) {
                 m_goodStabSampleCtr = 0;
                 m_goodSwingSampleCtr++;
+                m_lockedAngle = rotation * glm::fvec3(0.0f, 0.0f, 1.0f); // store z-axis
                 if (m_goodSwingSampleCtr > 3) {
                     m_lockedAttackType = AttackType::Slash;
-                    m_lockedAngle = rotation * glm::fvec3(0.0f, 0.0f, 1.0f); // store z-axis
                     //Log::print("!! Initiate swing");
                 }
             }
@@ -162,13 +164,13 @@ public:
         // check steadiness condition for attack types
         switch (m_lockedAttackType) {
             case AttackType::None: { 
-                m_badSampleCtr = 0;
+                //m_badSampleCtr = 0;
                 return;
             }
             case AttackType::Stab: {
                 glm::fvec3 stab_ang = glm::normalize(localLinearVelocity);
 
-                if (abs(stab_ang.z) < profile.stab_SteadinessThreshold || abs( - localLinearVelocity.z) < profile.stab_SpeedThreshold * 0.6f) {
+                if (abs(stab_ang.z) < profile.stab_SteadinessThreshold || - localLinearVelocity.z < profile.stab_SpeedThreshold * 0.6f) {
                     m_badSampleCtr++;
                 }
                 else {
@@ -179,7 +181,7 @@ public:
             case AttackType::Slash: {
                 glm::fvec3 dir_ang = glm::normalize(localAngularVelocity);
 
-                if (abs(dir_ang.y) < profile.slash_SteadinessThreshold || -localAngularVelocity.y < profile.slash_SpeedThreshold * 0.6f) {
+                if (abs(dir_ang.y) < profile.slash_SteadinessThreshold || abs( - localAngularVelocity.y) < profile.slash_SpeedThreshold * 0.6f) {
                     m_badSampleCtr++;
                 }
                 else {
@@ -190,7 +192,11 @@ public:
         }
         
         // Remove attack type if too many bad samples
-        if (m_badSampleCtr >= BAD_SAMPLES_BUFFER) m_lockedAttackType = AttackType::None;
+        if (m_badSampleCtr >= BAD_SAMPLES_BUFFER) {
+            m_badSampleCtr = 0;
+            //Log::print("!! removed attack due to bad samples");
+            m_lockedAttackType = AttackType::None;
+        }
     }
 
     void set_attack_activity(const glm::fquat rotation, const glm::fvec3 position) {
@@ -200,7 +206,8 @@ public:
         else if (!m_attackActivity) {
             switch (m_lockedAttackType) {
                 case AttackType::Stab: {
-                    const float travel_dist = (position - m_lockedPosition).length();
+                    const float travel_dist = glm::length(position - m_lockedPosition);
+                    Log::print("!! travel distance: {}", travel_dist);
                     if (travel_dist > profile.stab_travelDistance) {
                         m_attackActivity = true;
                     }
@@ -379,8 +386,8 @@ public:
             avX[j] = s.rotatedAngularVelocity().x;
             avY[j] = s.rotatedAngularVelocity().y;
             avZ[j] = s.rotatedAngularVelocity().z;
-            maskSlash[j] = (s.debug_attackType == AttackType::Slash) ? 99.f : -FLT_MAX;
-            maskStab[j] = (s.debug_attackType == AttackType::Stab) ? 99.f : -FLT_MAX;
+            maskSlash[j] = (s.debug_attackType == AttackType::Slash) ? 100.0f : -100.0f;
+            maskStab[j] = (s.debug_attackType == AttackType::Stab) ? 100.0f : -100.0f;
         }
 
         if (ImPlot::BeginPlot("Weapon Steadiness", { 0, 300 }, ImPlotFlags_NoTitle)) {
@@ -389,9 +396,9 @@ public:
             ImPlot::SetupAxisLimits(ImAxis_Y1, -15, 15, ImPlotCond_Always);
 
             ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 0.3f), 3);
-            ImPlot::PlotShaded("Slash", t.data(), maskSlash.data(), MAX_SAMPLES, -FLT_MAX);
+            ImPlot::PlotShaded("Slash", t.data(), maskSlash.data(), MAX_SAMPLES, -100.0f);
             ImPlot::SetNextLineStyle(ImVec4(1, 0.5f, 0, 0.3f), 3);
-            ImPlot::PlotShaded("Stab", t.data(), maskStab.data(), MAX_SAMPLES, -FLT_MAX);
+            ImPlot::PlotShaded("Stab", t.data(), maskStab.data(), MAX_SAMPLES, -100.0f);
 
             ImPlot::SetNextLineStyle(ImVec4(0, 1, 0.5f, 0.5f), 2);
             ImPlot::PlotLine("X", t.data(), avX.data(), MAX_SAMPLES);

@@ -17,13 +17,14 @@ public:
     std::optional<XrFovf> GetFOV(OpenXR::EyeSide side) const { return m_currViews.transform([side](auto& views) { return views[side].fov; }); }
     std::optional<XrPosef> GetPose(OpenXR::EyeSide side) const { return m_currViews.transform([side](auto& views) { return views[side].pose; }); }
     std::optional<glm::fquat> GetMiddlePose() const {
-        if (!m_currViews.has_value()) {
-            return std::nullopt;
-        }
-        auto views = m_currViews.value();
-        glm::fquat leftOrientation = glm::quat(views[OpenXR::EyeSide::LEFT].pose.orientation.w, views[OpenXR::EyeSide::LEFT].pose.orientation.x, views[OpenXR::EyeSide::LEFT].pose.orientation.y, views[OpenXR::EyeSide::LEFT].pose.orientation.z);
-        glm::fquat rightOrientation = glm::quat(views[OpenXR::EyeSide::RIGHT].pose.orientation.w, views[OpenXR::EyeSide::RIGHT].pose.orientation.x, views[OpenXR::EyeSide::RIGHT].pose.orientation.y, views[OpenXR::EyeSide::RIGHT].pose.orientation.z);
-        return glm::slerp(leftOrientation, rightOrientation, 0.5f);
+        return m_currViews.and_then([](const std::array<XrView, 2>& views) {
+            return std::make_optional(glm::lerp(ToGLM(views[OpenXR::EyeSide::LEFT].pose.orientation), ToGLM(views[OpenXR::EyeSide::RIGHT].pose.orientation), 0.5f));
+        });
+    }
+    std::optional<glm::fvec3> GetMiddlePosePos() const {
+        return m_currViews.and_then([](const std::array<XrView, 2>& views) {
+            return std::make_optional(glm::mix(ToGLM(views[OpenXR::EyeSide::LEFT].pose.position), ToGLM(views[OpenXR::EyeSide::RIGHT].pose.position), 0.5f));
+        });
     }
 
     class Layer3D {

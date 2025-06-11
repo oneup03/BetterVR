@@ -89,6 +89,13 @@ struct std::formatter<glm::mat3x4> : std::formatter<string> {
 };
 
 template <>
+struct std::formatter<glm::fvec2> : std::formatter<string> {
+    auto format(const glm::fvec2 mtx, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "[x={:.1f}, y={:.1f}]", mtx.x, mtx.y);
+    }
+};
+
+template <>
 struct std::formatter<glm::fvec3> : std::formatter<string> {
     auto format(const glm::fvec3 mtx, std::format_context& ctx) const {
         return std::format_to(ctx.out(), "[x={:.1f}, y={:.1f}, z={:.1f}]", mtx.x, mtx.y, mtx.z);
@@ -228,7 +235,7 @@ static void checkXRResult(const XrResult result, const char* errorMessage) {
             __debugbreak();
 #endif
             MessageBoxA(NULL, std::format("An unknown error {} has occurred which caused a fatal crash!", result).c_str(), "An error occurred!", MB_OK | MB_ICONERROR);
-            throw std::runtime_error("Undescribed error occurred!");
+            throw std::runtime_error("Unidentified error occurred!");
         }
         else {
             Log::print("[Error] Error {}: {}", result, errorMessage);
@@ -249,7 +256,7 @@ static void checkHResult(const HRESULT result, const char* errorMessage) {
             __debugbreak();
 #endif
             MessageBoxA(NULL, std::format("An unknown error {} has occurred which caused a fatal crash!", result).c_str(), "A fatal error occurred!", MB_OK | MB_ICONERROR);
-            throw std::runtime_error("Undescribed error occurred!");
+            throw std::runtime_error("Unidentified error occurred!");
         }
         else {
             Log::print("[Error] Error {}: {}", result, errorMessage);
@@ -270,7 +277,7 @@ static void checkVkResult(const VkResult result, const char* errorMessage) {
             __debugbreak();
 #endif
             MessageBoxA(NULL, std::format("An unknown error {} has occurred which caused a fatal crash!", (std::underlying_type_t<VkResult>)result).c_str(), "A fatal error occurred!", MB_OK | MB_ICONERROR);
-            throw std::runtime_error("Undescribed error occurred!");
+            throw std::runtime_error("Unidentified error occurred!");
         }
         else {
             Log::print("[Error] Error {}: {}", (std::underlying_type_t<VkResult>)result, errorMessage);

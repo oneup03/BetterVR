@@ -60,6 +60,10 @@ using Microsoft::WRL::ComPtr;
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+inline glm::fvec2 ToGLM(const XrVector2f& vec) {
+    return glm::make_vec2(&vec.x);
+}
+
 inline glm::fvec3 ToGLM(const XrVector3f& vec) {
     return glm::make_vec3(&vec.x);
 }
@@ -68,6 +72,18 @@ inline glm::fquat ToGLM(const XrQuaternionf& quat) {
     return glm::fquat(quat.w, quat.x, quat.y, quat.z);
 }
 
+
+inline XrVector2f ToXR(const glm::fvec2& vec) {
+    return { vec.x, vec.y };
+}
+
+inline XrVector3f ToXR(const glm::fvec3& vec) {
+    return { vec.x, vec.y, vec.z };
+}
+
+inline XrQuaternionf ToXR(const glm::fquat& quat) {
+    return { quat.x, quat.y, quat.z, quat.w };
+}
 
 inline std::string& toLower(std::string str) {
     std::ranges::transform(str, str.begin(), [](unsigned char c) { return std::tolower(c); });

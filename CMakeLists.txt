@@ -92,6 +92,19 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/vulkan_imgui.cpp
 )
 
+# Add graphic pack files to Visual Studio for editing
+file(GLOB_RECURSE GRAPHIC_PACK_FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/BreathOfTheWild_BetterVR/*")
+if(GRAPHIC_PACK_FILES)
+    foreach(GRAPHIC_PACK_FILE ${GRAPHIC_PACK_FILES})
+        file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/resources/BreathOfTheWild_BetterVR" "${GRAPHIC_PACK_FILE}")
+        string(REPLACE "\\" "/" REL_PATH "${REL_PATH}")
+        source_group("BreathOfTheWild_BetterVR" FILES "${GRAPHIC_PACK_FILE}")
+        set_source_files_properties("${GRAPHIC_PACK_FILE}" PROPERTIES HEADER_FILE_ONLY TRUE)
+        list(APPEND GRAPHIC_PACK_HEADER_FILES "${GRAPHIC_PACK_FILE}")
+    endforeach()
+    target_sources(BetterVR_Layer PRIVATE ${GRAPHIC_PACK_HEADER_FILES})
+endif()
+
 # Add vcpkg dependencies for DLL
 target_link_libraries(BetterVR_Layer PRIVATE OpenXR::headers OpenXR::openxr_loader)
 target_include_directories(BetterVR_Layer SYSTEM PRIVATE ${VULKAN_HEADERS_INCLUDE_DIRS})

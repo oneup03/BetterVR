@@ -366,8 +366,8 @@ XrCompositionLayerQuad RND_Renderer::Layer2D::FinishRendering(XrTime predictedDi
 
     XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
     xrLocateSpace(VRManager::instance().XR->m_headSpace, VRManager::instance().XR->m_stageSpace, predictedDisplayTime, &spaceLocation);
-    glm::quat headOrientation = glm::quat(spaceLocation.pose.orientation.w, spaceLocation.pose.orientation.x, spaceLocation.pose.orientation.y, spaceLocation.pose.orientation.z);
-    glm::vec3 headPosition = glm::vec3(spaceLocation.pose.position.x, spaceLocation.pose.position.y, spaceLocation.pose.position.z);
+    glm::quat headOrientation = ToGLM(spaceLocation.pose.orientation);
+    glm::vec3 headPosition = ToGLM(spaceLocation.pose.position);
 
     if (CemuHooks::GetSettings().UIFollowsLookingDirection()) {
         m_currentOrientation = glm::slerp(m_currentOrientation, headOrientation, LERP_SPEED);
@@ -383,8 +383,8 @@ XrCompositionLayerQuad RND_Renderer::Layer2D::FinishRendering(XrTime predictedDi
         glm::vec3 upDirection = glm::cross(rightDirection, forwardDirection);
         glm::quat userFacingOrientation = glm::quatLookAt(forwardDirection, upDirection);
 
-        spaceLocation.pose.orientation = { userFacingOrientation.x, userFacingOrientation.y, userFacingOrientation.z, userFacingOrientation.w };
-        spaceLocation.pose.position = { targetPosition.x, targetPosition.y, targetPosition.z };
+        spaceLocation.pose.orientation = ToXR(userFacingOrientation);
+        spaceLocation.pose.position = ToXR(targetPosition);
     }
     else {
         spaceLocation.pose.position.z -= DISTANCE;

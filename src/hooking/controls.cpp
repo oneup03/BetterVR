@@ -135,7 +135,39 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
 
     // movement/navigation stick
     XrActionStateVector2f& leftStickSource = inputs.inGame.in_game ? inputs.inGame.move : inputs.inMenu.navigate;
-    vpadStatus.leftStick = {leftStickSource.currentState.x + vpadStatus.leftStick.x.getLE(), leftStickSource.currentState.y + vpadStatus.leftStick.y.getLE()};
+
+    auto input = VRManager::instance().XR->m_input.load();
+
+    if (input.inGame.in_game) {
+        auto isolateYaw = [](const glm::fquat& q) -> glm::fquat {
+            glm::vec3 euler = glm::eulerAngles(q);
+            euler.x = 0.0f;
+            euler.z = 0.0f;
+            return glm::angleAxis(euler.y, glm::vec3(0, 1, 0));
+        };
+
+        glm::fquat controllerRotation = ToGLM(input.inGame.poseLocation[OpenXR::EyeSide::LEFT].pose.orientation);
+        glm::fquat controllerYawRotation = isolateYaw(controllerRotation);
+
+        glm::fquat moveRotation = input.inGame.pose[OpenXR::EyeSide::LEFT].isActive ? glm::inverse(VRManager::instance().XR->m_inputCameraRotation.load() * controllerYawRotation) : glm::identity<glm::fquat>();
+
+        glm::vec3 localMoveVec(leftStickSource.currentState.x, 0.0f, leftStickSource.currentState.y);
+
+        glm::vec3 worldMoveVec = moveRotation * localMoveVec;
+
+        float inputLen = glm::length(glm::vec2(leftStickSource.currentState.x, leftStickSource.currentState.y));
+        if (inputLen > 1e-3f) {
+            worldMoveVec = glm::normalize(worldMoveVec) * inputLen;
+        }
+        else {
+            worldMoveVec = glm::vec3(0.0f);
+        }
+
+        vpadStatus.leftStick = { worldMoveVec.x + vpadStatus.leftStick.x.getLE(), worldMoveVec.z + vpadStatus.leftStick.y.getLE() };
+    }
+    else {
+        vpadStatus.leftStick = { leftStickSource.currentState.x + vpadStatus.leftStick.x.getLE(), leftStickSource.currentState.y + vpadStatus.leftStick.y.getLE() };
+    }
 
     if (leftStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_LEFT) && leftStickSource.currentState.x <= -HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_L_EMULATION_LEFT;

@@ -28,6 +28,7 @@ public:
 
         osLib_registerHLEFunction("coreinit", "hook_BeginCameraSide", &hook_BeginCameraSide);
         osLib_registerHLEFunction("coreinit", "hook_EndCameraSide", &hook_EndCameraSide);
+        osLib_registerHLEFunction("coreinit", "hook_CameraRotationControl", &hook_CameraRotationControl);
         osLib_registerHLEFunction("coreinit", "hook_GetRenderProjection", &hook_GetRenderProjection);
         osLib_registerHLEFunction("coreinit", "hook_GetRenderCamera", &hook_GetRenderCamera);
         osLib_registerHLEFunction("coreinit", "hook_ApplyCameraRotation", &hook_ApplyCameraRotation);
@@ -75,6 +76,7 @@ private:
     static void hook_BeginCameraSide(PPCInterpreter_t* hCPU);
     static void hook_GetRenderCamera(PPCInterpreter_t* hCPU);
     static void hook_GetRenderProjection(PPCInterpreter_t* hCPU);
+    static void hook_CameraRotationControl(PPCInterpreter_t* hCPU);
     static void hook_ApplyCameraRotation(PPCInterpreter_t* hCPU);
     static void hook_EndCameraSide(PPCInterpreter_t* hCPU);
 

@@ -68,6 +68,7 @@ public:
         } inMenu;
     };
     std::atomic<InputState> m_input = InputState{};
+    std::atomic<glm::fquat> m_inputCameraRotation = glm::identity<glm::fquat>();
 
     void CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding);
     void CreateActions();
@@ -96,7 +97,8 @@ private:
 
     // gameplay actions
     XrActionSet m_gameplayActionSet = XR_NULL_HANDLE;
-    XrAction m_poseAction = XR_NULL_HANDLE;
+    XrAction m_gripPoseAction = XR_NULL_HANDLE;
+    XrAction m_aimPoseAction = XR_NULL_HANDLE;
     XrAction m_moveAction = XR_NULL_HANDLE;
     XrAction m_cameraAction = XR_NULL_HANDLE;
     XrAction m_grabAction = XR_NULL_HANDLE;
