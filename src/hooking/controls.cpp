@@ -87,8 +87,10 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     // read existing vpad as to not overwrite it
     uint32_t vpadStatusOffset = hCPU->gpr[4];
     VPADStatus vpadStatus = {};
+
+    auto* renderer = VRManager::instance().XR->GetRenderer();
     // todo: revert this to unblock gamepad input
-    if (!(VRManager::instance().VK->m_imguiOverlay && VRManager::instance().VK->m_imguiOverlay->ShouldBlockGameInput())) {
+    if (!(renderer && renderer->m_imguiOverlay && renderer->m_imguiOverlay->ShouldBlockGameInput())) {
         readMemory(vpadStatusOffset, &vpadStatus);
     }
 

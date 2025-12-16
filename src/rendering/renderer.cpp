@@ -45,56 +45,60 @@ void RND_Renderer::StartFrame() {
 void RND_Renderer::EndFrame() {
     std::vector<XrCompositionLayerBaseHeader*> compositionLayers;
 
-    m_presented3DLastFrame = false;
+    m_presented2DLastFrame = false;
+
     XrCompositionLayerProjection layer3D = { XR_TYPE_COMPOSITION_LAYER_PROJECTION };
     std::array<XrCompositionLayerProjectionView, 2> layer3DViews = {};
-    // checkAssert( m_layer3D->HasCopied(OpenXR::EyeSide::LEFT) == m_layer3D->HasCopied(OpenXR::EyeSide::RIGHT), "3D layer should always be rendered for both eyes at once!");
-    
+    std::vector<XrCompositionLayerQuad> layer2DQuads;
+
     long frameIdx = -1;
-    if (m_layer3D) {
-        if (m_layer3D->HasCopied(OpenXR::EyeSide::LEFT, 0) && m_layer3D->HasCopied(OpenXR::EyeSide::RIGHT, 0)) {
-            frameIdx = 0;
-        } else if (m_layer3D->HasCopied(OpenXR::EyeSide::LEFT, 1) && m_layer3D->HasCopied(OpenXR::EyeSide::RIGHT, 1)) {
-            frameIdx = 1;
-        }
+    if (m_renderFrames[0].Is3DComplete() && m_renderFrames[0].Is2DComplete()) {
+        frameIdx = 0;
+    }
+    else if (m_renderFrames[1].Is3DComplete() && m_renderFrames[1].Is2DComplete()) {
+        frameIdx = 1;
+    }
+    else if (m_renderFrames[0].Is2DComplete()) {
+        frameIdx = 0;
+    }
+    else if (m_renderFrames[1].Is2DComplete()) {
+        frameIdx = 1;
     }
 
     if (frameIdx != -1) {
-        m_layer3D->StartRendering();
-        m_layer3D->Render(OpenXR::EyeSide::LEFT, frameIdx);
-        m_layer3D->Render(OpenXR::EyeSide::RIGHT, frameIdx);
-        layer3DViews = m_layer3D->FinishRendering(frameIdx);
-        layer3D.layerFlags = NULL;
-        layer3D.space = VRManager::instance().XR->m_stageSpace;
-        layer3D.viewCount = (uint32_t)layer3DViews.size();
-        layer3D.views = layer3DViews.data();
-        if (CemuHooks::IsInGame()) {
-            m_presented3DLastFrame = true;
-            compositionLayers.emplace_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer3D));
+        if (m_layer3D) {
+            if (m_renderFrames[frameIdx].Is3DComplete()) {
+                m_layer3D->StartRendering();
+                m_layer3D->Render(OpenXR::EyeSide::LEFT, frameIdx);
+                m_layer3D->Render(OpenXR::EyeSide::RIGHT, frameIdx);
+                layer3DViews = m_layer3D->FinishRendering(frameIdx);
+                layer3D.layerFlags = 0;
+                layer3D.space = VRManager::instance().XR->m_stageSpace;
+                layer3D.viewCount = (uint32_t)layer3DViews.size();
+                layer3D.views = layer3DViews.data();
+                if (CemuHooks::IsInGame()) {
+                    m_renderFrames[frameIdx].presented3D = true;
+                    compositionLayers.emplace_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer3D));
+                }
+                else {
+                    m_renderFrames[frameIdx].presented3D = false;
+                }
+            } else {
+                m_renderFrames[frameIdx].presented3D = false;
+            }
         }
-    }
 
-    // todo: currently ignores m_frameState.shouldRender, but that's probably fine
-    long frameIdx2D = -1;
-    if (m_layer2D) {
-        if (m_layer2D->HasCopied(0)) {
-            frameIdx2D = 0;
-        } else if (m_layer2D->HasCopied(1)) {
-            frameIdx2D = 1;
+        if (m_layer2D) {
+            m_layer2D->StartRendering();
+            m_layer2D->Render(frameIdx);
+            layer2DQuads = m_layer2D->FinishRendering(m_frameState.predictedDisplayTime, frameIdx);
+            m_presented2DLastFrame = true;
+            for (auto& layer : layer2DQuads) {
+                compositionLayers.emplace_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
+            }
         }
-    }
 
-    m_presented2DLastFrame = frameIdx2D != -1;
-    std::vector<XrCompositionLayerQuad> layer2D;
-    // checkAssert(m_presented2DLastFrame, "2D layer should always be rendered!");
-    if (m_presented2DLastFrame) {
-        // The HUD/menus aren't eye-specific, so present the most recent one for both eyes at once
-        m_layer2D->StartRendering();
-        m_layer2D->Render(frameIdx2D);
-        layer2D = m_layer2D->FinishRendering(m_frameState.predictedDisplayTime, frameIdx2D);
-        for (auto& layer : layer2D) {
-            compositionLayers.emplace_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
-        }
+        m_renderFrames[frameIdx].Reset();
     }
 
     XrFrameEndInfo frameEndInfo = { XR_TYPE_FRAME_END_INFO };
@@ -152,11 +156,6 @@ RND_Renderer::Layer3D::Layer3D(VkExtent2D extent) {
                 context->Signal(this->m_textures[OpenXR::EyeSide::RIGHT][i].get(), 0);
                 context->Signal(this->m_depthTextures[OpenXR::EyeSide::LEFT][i].get(), 0);
                 context->Signal(this->m_depthTextures[OpenXR::EyeSide::RIGHT][i].get(), 0);
-                
-                this->m_copiedColor[OpenXR::EyeSide::LEFT][i] = false;
-                this->m_copiedColor[OpenXR::EyeSide::RIGHT][i] = false;
-                this->m_copiedDepth[OpenXR::EyeSide::LEFT][i] = false;
-                this->m_copiedDepth[OpenXR::EyeSide::RIGHT][i] = false;
             }
         });
     }
@@ -172,13 +171,11 @@ SharedTexture* RND_Renderer::Layer3D::CopyColorToLayer(OpenXR::EyeSide side, VkC
     // Log::print("[VULKAN] Copying COLOR for {} side", side == OpenXR::EyeSide::LEFT ? "left" : "right");
     m_currentFrameIdx = frameIdx;
     m_textures[side][frameIdx]->CopyFromVkImage(copyCmdBuffer, image);
-    m_copiedColor[side][frameIdx] = true;
     return m_textures[side][frameIdx].get();
 }
 
 SharedTexture* RND_Renderer::Layer3D::CopyDepthToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx) {
     m_depthTextures[side][frameIdx]->CopyFromVkImage(copyCmdBuffer, image);
-    m_copiedDepth[side][frameIdx] = true;
     return m_depthTextures[side][frameIdx].get();
 }
 
@@ -255,17 +252,12 @@ const std::array<XrCompositionLayerProjectionView, 2>& RND_Renderer::Layer3D::Fi
     this->m_swapchains[OpenXR::EyeSide::RIGHT]->FinishRendering();
     this->m_depthSwapchains[OpenXR::EyeSide::RIGHT]->FinishRendering();
 
-    this->m_copiedColor[OpenXR::EyeSide::LEFT][frameIdx] = false;
-    this->m_copiedColor[OpenXR::EyeSide::RIGHT][frameIdx] = false;
-    this->m_copiedDepth[OpenXR::EyeSide::LEFT][frameIdx] = false;
-    this->m_copiedDepth[OpenXR::EyeSide::RIGHT][frameIdx] = false;
-
     // clang-format off
     m_projectionViews[OpenXR::EyeSide::LEFT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
         .next = &m_projectionViewsDepthInfo[OpenXR::EyeSide::LEFT],
-        .pose = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::LEFT).value(),
-        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(OpenXR::EyeSide::LEFT).value(),
+        .pose = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::LEFT, frameIdx).value(),
+        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(OpenXR::EyeSide::LEFT, frameIdx).value(),
         .subImage = {
             .swapchain = this->m_swapchains[OpenXR::EyeSide::LEFT]->GetHandle(),
             .imageRect = {
@@ -297,8 +289,8 @@ const std::array<XrCompositionLayerProjectionView, 2>& RND_Renderer::Layer3D::Fi
     m_projectionViews[OpenXR::EyeSide::RIGHT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
         .next = &m_projectionViewsDepthInfo[OpenXR::EyeSide::RIGHT],
-        .pose = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::RIGHT).value(),
-        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(OpenXR::EyeSide::RIGHT).value(),
+        .pose = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::RIGHT, frameIdx).value(),
+        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(OpenXR::EyeSide::RIGHT, frameIdx).value(),
         .subImage = {
             .swapchain = this->m_swapchains[OpenXR::EyeSide::RIGHT]->GetHandle(),
             .imageRect = {
@@ -359,7 +351,6 @@ RND_Renderer::Layer2D::Layer2D(VkExtent2D extent) {
             for (int i = 0; i < 2; ++i) {
                 this->m_textures[i]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
                 context->Signal(this->m_textures[i].get(), 0);
-                this->m_recordedCopy[i] = false;
             }
         });
     }
@@ -372,7 +363,6 @@ RND_Renderer::Layer2D::~Layer2D() {
 SharedTexture* RND_Renderer::Layer2D::CopyColorToLayer(VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx) {
     m_currentFrameIdx = frameIdx;
     m_textures[frameIdx]->CopyFromVkImage(copyCmdBuffer, image);
-    m_recordedCopy[frameIdx] = true;
     return m_textures[frameIdx].get();
 }
 
@@ -402,7 +392,6 @@ void RND_Renderer::Layer2D::Render(long frameIdx) {
         texture->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
         context->Signal(texture.get(), SEMAPHORE_TO_VULKAN);
     });
-    m_recordedCopy[frameIdx] = false;
 }
 
 std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTime predictedDisplayTime, long frameIdx) {

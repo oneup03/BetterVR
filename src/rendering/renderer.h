@@ -13,27 +13,89 @@ public:
     explicit RND_Renderer(XrSession xrSession);
     ~RND_Renderer();
 
+    struct RenderFrame {
+        std::optional<std::array<XrView, 2>> views;
+        std::array<std::atomic_bool, 2> copiedColor = { false, false };
+        std::array<std::atomic_bool, 2> copiedDepth = { false, false };
+        std::atomic_bool copied2D = false;
+        std::atomic_bool presented3D = false;
+
+        std::unique_ptr<VulkanTexture> mainFramebuffer;
+        std::unique_ptr<VulkanTexture> hudFramebuffer;
+        std::unique_ptr<VulkanTexture> hudWithoutAlphaFramebuffer;
+        std::unique_ptr<VulkanFramebuffer> imguiFramebuffer;
+        VkDescriptorSet mainFramebufferDS = VK_NULL_HANDLE;
+        VkDescriptorSet hudFramebufferDS = VK_NULL_HANDLE;
+        VkDescriptorSet hudWithoutAlphaFramebufferDS = VK_NULL_HANDLE;
+        float mainFramebufferAspectRatio = 1.0f;
+
+        bool Is3DComplete() const { return copiedColor[0] && copiedColor[1] && copiedDepth[0] && copiedDepth[1]; }
+        bool Is2DComplete() const { return copied2D; }
+
+        void Reset() {
+            views = std::nullopt;
+            copiedColor[0] = false;
+            copiedColor[1] = false;
+            copiedDepth[0] = false;
+            copiedDepth[1] = false;
+            copied2D = false;
+        }
+    };
+
     void StartFrame();
     void EndFrame();
     std::optional<std::array<XrView, 2>> UpdateViews(XrTime predictedDisplayTime);
-    std::optional<std::array<XrView, 2>> GetPoses() const { return m_currViews; }
-    std::optional<XrFovf> GetFOV(OpenXR::EyeSide side) const { return m_currViews.transform([side](auto& views) { return views[side].fov; }); }
-    std::optional<XrPosef> GetPose(OpenXR::EyeSide side) const { return m_currViews.transform([side](auto& views) { return views[side].pose; }); }
-    std::optional<glm::fmat4> GetPoseAsMatrix(OpenXR::EyeSide side) const {
-        return m_currViews.transform([side](auto& views) {
+    
+    std::optional<std::array<XrView, 2>> GetPoses(long frameIdx = -1) const { 
+        if (frameIdx != -1 && m_renderFrames[frameIdx].views.has_value()) return m_renderFrames[frameIdx].views;
+        return m_currViews; 
+    }
+    
+    std::optional<XrFovf> GetFOV(OpenXR::EyeSide side, long frameIdx = -1) const { 
+        const auto& views = (frameIdx != -1 && m_renderFrames[frameIdx].views.has_value()) ? m_renderFrames[frameIdx].views : m_currViews;
+        return views.transform([side](auto& views) { return views[side].fov; }); 
+    }
+    
+    std::optional<XrPosef> GetPose(OpenXR::EyeSide side, long frameIdx = -1) const { 
+        const auto& views = (frameIdx != -1 && m_renderFrames[frameIdx].views.has_value()) ? m_renderFrames[frameIdx].views : m_currViews;
+        return views.transform([side](auto& views) { return views[side].pose; }); 
+    }
+    
+    std::optional<glm::fmat4> GetPoseAsMatrix(OpenXR::EyeSide side, long frameIdx = -1) const {
+        const auto& views = (frameIdx != -1 && m_renderFrames[frameIdx].views.has_value()) ? m_renderFrames[frameIdx].views : m_currViews;
+        return views.transform([side](auto& views) {
             const XrPosef& pose = views[side].pose;
             return ToMat4(ToGLM(pose.position), ToGLM(pose.orientation));
         });
     };
-    std::optional<glm::fmat4> GetMiddlePose() const {
-        if (!m_currViews.has_value()) return std::nullopt;
-        const XrPosef& leftPose = m_currViews->at(OpenXR::EyeSide::LEFT).pose;
-        const XrPosef& rightPose = m_currViews->at(OpenXR::EyeSide::RIGHT).pose;
+    
+    std::optional<glm::fmat4> GetMiddlePose(long frameIdx = -1) const {
+        const auto& views = (frameIdx != -1 && m_renderFrames[frameIdx].views.has_value()) ? m_renderFrames[frameIdx].views : m_currViews;
+        if (!views.has_value()) return std::nullopt;
+        const XrPosef& leftPose = views->at(OpenXR::EyeSide::LEFT).pose;
+        const XrPosef& rightPose = views->at(OpenXR::EyeSide::RIGHT).pose;
         glm::fvec3 middlePos = (ToGLM(leftPose.position) + ToGLM(rightPose.position)) * 0.5f;
         glm::quat middleOri = glm::slerp(ToGLM(leftPose.orientation), ToGLM(rightPose.orientation), 0.5f);
 
         return ToMat4(middlePos, middleOri);
     };
+
+    void On3DColorCopied(OpenXR::EyeSide side, long frameIdx) {
+        m_renderFrames[frameIdx].copiedColor[side] = true;
+        if (!m_renderFrames[frameIdx].views.has_value()) m_renderFrames[frameIdx].views = m_currViews;
+    }
+
+    void On3DDepthCopied(OpenXR::EyeSide side, long frameIdx) {
+        m_renderFrames[frameIdx].copiedDepth[side] = true;
+        if (!m_renderFrames[frameIdx].views.has_value()) m_renderFrames[frameIdx].views = m_currViews;
+    }
+
+    void On2DCopied(long frameIdx) {
+        m_renderFrames[frameIdx].copied2D = true;
+    }
+
+    RenderFrame& GetFrame(long frameIdx) { return m_renderFrames[frameIdx]; }
+    const RenderFrame& GetFrame(long frameIdx) const { return m_renderFrames[frameIdx]; }
 
     class Layer3D {
     public:
@@ -42,9 +104,6 @@ public:
 
         SharedTexture* CopyColorToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx);
         SharedTexture* CopyDepthToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx);
-        bool HasCopied(OpenXR::EyeSide side, long frameIdx) const { return m_copiedColor[side][frameIdx] && m_copiedDepth[side][frameIdx]; };
-        bool HasCopiedColor(OpenXR::EyeSide side, long frameIdx) const { return m_copiedColor[side][frameIdx]; };
-        bool HasCopiedDepth(OpenXR::EyeSide side, long frameIdx) const { return m_copiedDepth[side][frameIdx]; };
         void PrepareRendering(OpenXR::EyeSide side);
         void StartRendering();
         void Render(OpenXR::EyeSide side, long frameIdx);
@@ -63,9 +122,6 @@ public:
         std::array<XrCompositionLayerProjectionView, 2> m_projectionViews = {};
         std::array<XrCompositionLayerDepthInfoKHR, 2> m_projectionViewsDepthInfo = {};
 
-        std::array<std::array<std::atomic_bool, 2>, 2> m_copiedColor;
-        std::array<std::array<std::atomic_bool, 2>, 2> m_copiedDepth;
-
         long m_currentFrameIdx = 0;
     };
 
@@ -75,8 +131,7 @@ public:
         ~Layer2D();
 
         SharedTexture* CopyColorToLayer(VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx);
-        bool HasRecordedCopy(long frameIdx) const { return m_recordedCopy[frameIdx]; }
-        bool HasCopied(long frameIdx) const { return m_recordedCopy[frameIdx] && m_textures[frameIdx]->GetLastSignalledValue() == SEMAPHORE_TO_D3D12; };
+        bool IsTextureReady(long frameIdx) const { return m_textures[frameIdx]->GetLastSignalledValue() == SEMAPHORE_TO_D3D12; };
         void StartRendering() const;
         void Render(long frameIdx);
         std::vector<XrCompositionLayerQuad> FinishRendering(XrTime predictedDisplayTime, long frameIdx);
@@ -86,7 +141,6 @@ public:
         std::unique_ptr<Swapchain<DXGI_FORMAT_R8G8B8A8_UNORM_SRGB>> m_swapchain;
         std::unique_ptr<RND_D3D12::PresentPipeline<false>> m_presentPipeline;
         std::array<std::unique_ptr<SharedTexture>, 2> m_textures;
-        std::array<std::atomic_bool, 2> m_recordedCopy;
 
         static constexpr float DISTANCE = 2.0f;
         static constexpr float LERP_SPEED = 0.05f;
@@ -95,11 +149,36 @@ public:
         long m_currentFrameIdx = 0;
     };
 
+    class ImGuiOverlay {
+    public:
+        explicit ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint32_t height, VkFormat format);
+        ~ImGuiOverlay();
+
+        bool ShouldBlockGameInput() { return ImGui::GetIO().WantCaptureKeyboard; }
+
+        void BeginFrame(long frameIdx, bool renderBackground);
+        static void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx);
+        static void DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, long frameIdx);
+        void Update();
+        void Render();
+        void DrawAndCopyToImage(VkCommandBuffer cb, VkImage destImage, long frameIdx);
+
+    private:
+        VkDescriptorPool m_descriptorPool;
+        VkRenderPass m_renderPass;
+
+        HWND m_cemuTopWindow = nullptr;
+        HWND m_cemuRenderWindow = nullptr;
+
+        VkSampler m_sampler = VK_NULL_HANDLE;
+    };
+
     std::unique_ptr<Layer3D> m_layer3D;
     std::unique_ptr<Layer2D> m_layer2D;
+    std::unique_ptr<ImGuiOverlay> m_imguiOverlay;
 
-    bool IsRendering3D() {
-        return m_presented3DLastFrame;
+    bool IsRendering3D(long frameIdx) {
+        return m_renderFrames[frameIdx].presented3D;
     }
     bool IsRendering2D() {
         return m_presented2DLastFrame;
@@ -112,8 +191,8 @@ protected:
     XrSession m_session;
     XrFrameState m_frameState = { XR_TYPE_FRAME_STATE };
     std::optional<std::array<XrView, 2>> m_currViews;
+    std::array<RenderFrame, 2> m_renderFrames;
 
     std::atomic_bool m_isInitialized = false;
-    std::atomic_bool m_presented3DLastFrame = false;
     std::atomic_bool m_presented2DLastFrame = false;
 };

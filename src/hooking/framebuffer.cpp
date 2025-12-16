@@ -63,7 +63,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
         auto* renderer = VRManager::instance().XR->GetRenderer();
         auto& layer3D = renderer->m_layer3D;
         auto& layer2D = renderer->m_layer2D;
-        auto& imguiOverlay = VRManager::instance().VK->m_imguiOverlay;
+        auto& imguiOverlay = renderer->m_imguiOverlay;
 
         // initialize the textures of both 2D and 3D layer if either is found since they share the same VkImage and resolution
         if (captureIdx == 0 || captureIdx == 2) {
@@ -74,11 +74,9 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                     layer2D = std::make_unique<RND_Renderer::Layer2D>(it->second.first);
 
                     // Log::print("Found rendering resolution {}x{} @ {} using capture #{}", it->second.first.width, it->second.first.height, it->second.second, captureIdx);
-                    if (CemuHooks::GetSettings().Is2DVRViewEnabled()) {
-                        imguiOverlay = std::make_unique<RND_Vulkan::ImGuiOverlay>(commandBuffer, it->second.first.width, it->second.first.height, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
-                        if (CemuHooks::GetSettings().ShowDebugOverlay()) {
-                            VRManager::instance().Hooks->m_entityDebugger = std::make_unique<EntityDebugger>();
-                        }
+                    imguiOverlay = std::make_unique<RND_Renderer::ImGuiOverlay>(commandBuffer, it->second.first.width, it->second.first.height, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
+                    if (CemuHooks::GetSettings().ShowDebugOverlay()) {
+                        VRManager::instance().Hooks->m_entityDebugger = std::make_unique<EntityDebugger>();
                     }
                 }
                 else {
@@ -114,7 +112,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
 
             if (image != s_curr3DColorImage) {
                 Log::print<RENDERING>("Color image is not the same as the current 3D color image! ({} != {})", (void*)image, (void*)s_curr3DColorImage);
-                if (VRManager::instance().XR->GetRenderer()->IsRendering3D()) {
+                if (VRManager::instance().XR->GetRenderer()->IsRendering3D(frameIdx)) {
                     const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
                 }
                 else {
@@ -123,7 +121,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                 return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
             }
 
-            if (layer3D->HasCopiedColor(side, frameIdx)) {
+            if (renderer->GetFrame(frameIdx).copiedColor[side]) {
                 // the color texture has already been copied to the layer
                 Log::print<RENDERING>("A 3D color texture is already been copied for the current frame!");
                 const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -132,6 +130,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
 
             // note: This uses vkCmdCopyImage to copy the image to an OpenXR-specific texture. s_activeCopyOperations queues a semaphore for the D3D12 side to wait on.
             SharedTexture* texture = layer3D->CopyColorToLayer(side, commandBuffer, image, frameIdx);
+            renderer->On3DColorCopied(side, frameIdx);
             // Log::print("[VULKAN] Waiting for {} side to be 0", side == OpenXR::EyeSide::LEFT ? "left" : "right");
             s_activeCopyOperations.emplace_back(commandBuffer, texture);
             VulkanUtils::DebugPipelineBarrier(commandBuffer);
@@ -141,7 +140,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                 float aspectRatio = layer3D->GetAspectRatio(OpenXR::EyeSide::RIGHT);
 
                 // note: Uses vkCmdCopyImage to copy the (right-eye-only) image to the imgui overlay's texture
-                imguiOverlay->Draw3DLayerAsBackground(commandBuffer, image, aspectRatio);
+                imguiOverlay->Draw3DLayerAsBackground(commandBuffer, image, aspectRatio, frameIdx);
             }
             VulkanUtils::DebugPipelineBarrier(commandBuffer);
             VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
@@ -157,44 +156,56 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
         else if (captureIdx == 2) {
             // 2D layer - color texture for HUD rendering
 
-            if (layer2D->HasRecordedCopy(frameIdx)) {
-                // the 2D texture has already been copied to the layer
-                Log::print<RENDERING>("A 2D texture has already been copied for the current frame!");
-                const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
-                return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
-            }
+            bool hudCopied = renderer->GetFrame(frameIdx).copied2D;
 
             if (side == OpenXR::EyeSide::LEFT) {
-                // provide the HUD texture to the imgui overlay we'll use to recomposite Cemu's original flatscreen rendering
-                if (imguiOverlay && imguiOverlay->m_initialized) {
-                    VRManager::instance().VK->m_imguiOverlay->DrawHUDLayerAsBackground(commandBuffer, image);
-                    VulkanUtils::DebugPipelineBarrier(commandBuffer);
-                    VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
-                }
-
-                if (imguiOverlay && imguiOverlay->m_initialized && CemuHooks::GetSettings().ShowDebugOverlay()) {
-                    // render the debug overlay on top of the HUD
-                    imguiOverlay->Render();
-                    imguiOverlay->DrawOverlayToImage(commandBuffer, image);
-
-                    // only copy the first attempt at capturing when GX2ClearColor is called with this capture index since the game/Cemu clears the 2D layer twice
-                    SharedTexture* texture = layer2D->CopyColorToLayer(commandBuffer, image, frameIdx);
-                    s_activeCopyOperations.emplace_back(commandBuffer, texture);
+                if (hudCopied) {
+                    // the 2D texture has already been copied to the layer
+                    Log::print<RENDERING>("A 2D texture has already been copied for the current frame!");
+                    const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 1.0f, 0.0f, 1.0f };
+                    return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
                 }
                 else {
+                    // provide the HUD texture to the imgui overlay we'll use to recomposite Cemu's original flatscreen rendering
+                    if (imguiOverlay && !hudCopied) {
+                        imguiOverlay->DrawHUDLayerAsBackground(commandBuffer, image, frameIdx);
+                        VulkanUtils::DebugPipelineBarrier(commandBuffer);
+                        VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+                    }
+
+                    if (!hudCopied) {
+                        // render imgui, and then copy the framebuffer to the 2D layer
+                        imguiOverlay->BeginFrame(frameIdx, false);
+                        imguiOverlay->Update();
+                        imguiOverlay->Render();
+                        imguiOverlay->DrawAndCopyToImage(commandBuffer, image, frameIdx);
+                        VulkanUtils::DebugPipelineBarrier(commandBuffer);
+                        VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+                    }
+
                     // copy the HUD texture to D3D12 to be presented
+                    // only copy the first attempt at capturing when GX2ClearColor is called with this capture index since the game/Cemu clears the 2D layer twice
                     SharedTexture* texture = layer2D->CopyColorToLayer(commandBuffer, image, frameIdx);
+                    renderer->On2DCopied(frameIdx);
                     s_activeCopyOperations.emplace_back(commandBuffer, texture);
                 }
             }
             if (side == OpenXR::EyeSide::RIGHT) {
                 // render the imgui overlay on the right side
-                if (imguiOverlay && imguiOverlay->m_initialized) {
+                if (imguiOverlay) {
                     // render imgui, and then copy the framebuffer to the 2D layer
+                    imguiOverlay->BeginFrame(frameIdx, true);
+                    imguiOverlay->Update();
                     imguiOverlay->Render();
-                    imguiOverlay->DrawOverlayToImage(commandBuffer, image);
+                    imguiOverlay->DrawAndCopyToImage(commandBuffer, image, frameIdx);
                     VulkanUtils::DebugPipelineBarrier(commandBuffer);
                     VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+                    return;
+                }
+
+                if (hudCopied) {
+                    const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                    return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
                 }
             }
         }
@@ -247,7 +258,7 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
                 return;
             }
 
-            if (layer3D->HasCopiedDepth(side, frameCounter)) {
+            if (VRManager::instance().XR->GetRenderer()->GetFrame(frameCounter).copiedDepth[side]) {
                 // the depth texture has already been copied to the layer
                 Log::print<RENDERING>("A depth texture is already bound for the current frame!");
                 return;
@@ -262,6 +273,7 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
             // checkAssert(layer3D.GetStatus() == Status3D::LEFT_BINDING_COLOR || layer3D.GetStatus() == Status3D::RIGHT_BINDING_COLOR, "3D layer is not in the correct state for capturing depth images!");
 
             SharedTexture* texture = layer3D->CopyDepthToLayer(side, commandBuffer, image, frameCounter);
+            VRManager::instance().XR->GetRenderer()->On3DDepthCopied(side, frameCounter);
             s_activeCopyOperations.emplace_back(commandBuffer, texture);
             return;
         }

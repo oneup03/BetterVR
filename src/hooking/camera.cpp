@@ -13,12 +13,10 @@ void CemuHooks::hook_BeginCameraSide(PPCInterpreter_t* hCPU) {
     Log::print<RENDERING>("===============================================================================");
     Log::print<RENDERING>("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side == OpenXR::EyeSide::LEFT ? "LEFT" : "RIGHT");
 
-    bool layersInitialized = VRManager::instance().XR->GetRenderer()->m_layer3D && VRManager::instance().XR->GetRenderer()->m_layer2D;
+    RND_Renderer* renderer = VRManager::instance().XR->GetRenderer();
+
+    bool layersInitialized = renderer->m_layer3D && renderer->m_layer2D && renderer->m_imguiOverlay;
     if (layersInitialized && side == OpenXR::EyeSide::LEFT) {
-        if (VRManager::instance().VK->m_imguiOverlay) {
-            VRManager::instance().VK->m_imguiOverlay->BeginFrame();
-            VRManager::instance().VK->m_imguiOverlay->Update();
-        }
         VRManager::instance().XR->GetRenderer()->StartFrame();
     }
 }
