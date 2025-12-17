@@ -292,7 +292,7 @@ void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
 
     heldIndex = heldIndex == 0 ? 1 : 0;
 
-    
+
     //Log::print("!! Running weapon analysis for {}", heldIndex);
 
     auto state = VRManager::instance().XR->m_input.load();
@@ -444,37 +444,25 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
     uint32_t boneNamePtr = hCPU->gpr[6];
     uint32_t boneIdx = hCPU->gpr[27];
 
-    sead::FixedSafeString100 modelName = getMemory<sead::FixedSafeString100>(gsysModelPtr + 0x128);
-
-    BEMatrix34 matrix = {};
-    readMemory(matrixPtr, &matrix);
-    BEVec3 scale = {};
-    readMemory(scalePtr, &scale);
-
-    if (gsysModelPtr == 0 || matrixPtr == 0 || scalePtr == 0) {
-        //Log::print("!! Bone name couldn't be found for bone #{} for model {}", boneIdx, modelName.getLE());
+    if (gsysModelPtr == 0 || matrixPtr == 0 || scalePtr == 0 || boneNamePtr == 0) {
+        //Log::print<INFO>("Bone name couldn't be found for bone #{} for model {}", boneIdx, modelName.getLE());
         return;
-    }
-
-    if (boneNamePtr == 0) {
-        //Log::print("!! Bone name couldn't be found for bone #{} for model {}", boneIdx, modelName.getLE());
-        return;
-    }
-    else {
-        char* boneNamePtrChar = (char*)(s_memoryBaseAddress + boneNamePtr);
-        std::string_view boneName(boneNamePtrChar);
-        //Log::print("!! Bone index #{} ({}) for model {}", boneIdx, boneName, modelName.getLE());
     }
 
     // todo: check if Link's armor is filtered out due to this check
+    sead::FixedSafeString100 modelName = getMemory<sead::FixedSafeString100>(gsysModelPtr + 0x128);
     if (modelName.getLE() != "GameROMPlayer") {
         return;
     }
 
+    // extract bone info
+    glm::fmat4x3 matrixNew = getMemory<BEMatrix34>(matrixPtr).getLEMatrix();
+    glm::fvec3 bonePos = matrixNew[3];
+    glm::fquat boneRot = glm::quat_cast(glm::mat3(matrixNew));
+    glm::fvec3 boneScale = getMemory<BEVec3>(scalePtr).getLE();
 
     char* boneNamePtrChar = (char*)(s_memoryBaseAddress + boneNamePtr);
     std::string_view boneName(boneNamePtrChar);
-    //Log::print("!! Scale = {} for {}", scale.getLE(), boneName);
 
     bool leftOrRightSide = boneName.ends_with("_L");
 
@@ -505,107 +493,61 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
         }
     }
 
-#ifdef _DEBUG
-    static glm::fquat debug_rotatingAngles = glm::identity<glm::fquat>();
-    debug_rotatingAngles = debug_rotatingAngles * glm::angleAxis(glm::radians(0.1f), glm::fvec3(0, 0, 1));
-
-    static glm::fvec3 debug_movingPositions = glm::fvec3();
-    static bool isMovingUp = true;
-    glm::fvec3 moveAxis = glm::fvec3(0.5f, 0.0f, 0.0f);
-    float speedOverSecond = 1.0f / 240.0f;
-
-    glm::fvec3 dir = glm::normalize(moveAxis);
-    float step = speedOverSecond * glm::length(moveAxis);
-    if (isMovingUp) {
-        debug_movingPositions += dir * step;
-        float t = glm::dot(debug_movingPositions, dir);
-        if (t >= 0.5f) {
-            debug_movingPositions = dir * 0.5f;
-            isMovingUp = false;
-        }
-    }
-    else {
-        debug_movingPositions -= dir * step;
-        float t = glm::dot(debug_movingPositions, dir);
-        if (t <= -0.5f) {
-            debug_movingPositions = dir * -0.5f;
-            isMovingUp = true;
-        }
-    }
-    //debug_movingPositions = glm::fvec3(0, 1, 0);
-#endif
-
     if (boneName == "Root") {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName == "Skl_Root") {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
-
-        //matrix.setPos(glm::fvec3(0.0f, 0.99426f, 0.0f));
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Spine_1")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
-        //matrix.setRotLE(matrix.getRotLE() * glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1)));
-        //matrix.setRotLE(matrix.getRotLE() * glm::angleAxis(glm::radians(-90.0f), glm::fvec3(1, 0, 0)));
-        //matrix.setRotLE(matrix.getRotLE() * glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1)));
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Spine_2")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
-
-        //matrix.setPos(glm::fvec3(0.13600f, 0.0f, 0.0f));
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName == "Neck") {
-        //matrix.setPos(glm::fvec3(0.26326f, 0.0f, 0.0f));
-
-        // fixme: properly hide his head instead of just putting it way below.
-        //matrix.setPos(glm::fvec3(-0.46326f, 0.0f, 0.0f));
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName == "Head") {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
-
-        //matrix.setPos(glm::fvec3(0.12447f, 0.0f, 0.0f));
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Clavicle_Assist")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Clavicle")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Arm_1_Assist")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Arm_1")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Elbow")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Wrist_Assist")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Arm_2")) {
-        matrix.setPos(glm::fvec3());
-        matrix.setRotLE(glm::identity<glm::fquat>());
-
-        // add player height that we've removed above
-        //matrix.setPos(matrix.getPos().getLE() - glm::fvec3(0.0f, 0.99426f + 0.13600f, 0.0f));
+        bonePos = glm::fvec3();
+        boneRot = glm::identity<glm::fquat>();
     }
     else if (boneName.starts_with("Wrist")) {
-        matrix.setRotLE(glm::identity<glm::fquat>());
-        matrix.setPos(glm::fvec3());
+        boneRot = glm::identity<glm::fquat>();
+        bonePos = glm::fvec3();
 
         // player model orientation in world space
         BEMatrix34 bePlayerMtx = getMemory<BEMatrix34>(s_playerMtxAddress);
@@ -666,8 +608,23 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
 
         glm::fmat4x3 truncatedFinalMtx = glm::mat4x3(glm::inverse(playerMtx4) * controllerRelativeToPlayerModel);
 
-        matrix.setLEMatrix(truncatedFinalMtx);
+        bonePos = truncatedFinalMtx[3];
+        boneRot = glm::quat_cast(glm::mat3(truncatedFinalMtx));
+    }
+    else {
+        // not a (parent of the) wrist bone, do nothing 
+        return;
     }
 
-    writeMemory(matrixPtr, &matrix);
+    glm::mat3 rotMat = glm::mat3_cast(boneRot);
+    glm::mat4x3 finalMtx(
+        rotMat[0],
+        rotMat[1],
+        rotMat[2],
+        bonePos
+    );
+
+    BEMatrix34 finalMatrix;
+    finalMatrix.setLEMatrix(finalMtx);
+    writeMemory(matrixPtr, &finalMatrix);
 }

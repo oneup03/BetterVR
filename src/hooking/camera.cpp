@@ -145,16 +145,16 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     baseRot = s_wsCameraRotation;
     auto [swing, baseYaw] = swingTwistY(baseRot);
 
-    // take link's direction, then rotate the headset position
-    BEMatrix34 mtx = {};
-    readMemory(s_playerMtxAddress, &mtx);
-    glm::fvec3 playerPos = mtx.getPos().getLE();
-    glm::fquat playerRot = mtx.getRotLE();
-
     if (IsFirstPerson()) {
+        // take link's direction, then rotate the headset position
+        BEMatrix34 mtx = {};
+        readMemory(s_playerMtxAddress, &mtx);
+        glm::fvec3 playerPos = mtx.getPos().getLE();
+
         basePos = playerPos;
         if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
             if (settings->ignoreCameraRotation) {
+                glm::fquat playerRot = mtx.getRotLE();
                 auto [swing, yaw] = swingTwistY(playerRot);
                 baseYaw = yaw * glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
             }

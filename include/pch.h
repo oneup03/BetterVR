@@ -348,24 +348,20 @@ struct BEMatrix34 : BETypeCompatible {
     }
 
     glm::fquat getRotLE() const {
-        return glm::quat_cast(glm::fmat3(
-            x_x.getLE(), x_y.getLE(), x_z.getLE(),
-            y_x.getLE(), y_y.getLE(), y_z.getLE(),
-            z_x.getLE(), z_y.getLE(), z_z.getLE()
-        ));
+        return glm::quat_cast(glm::fmat3(getLEMatrix()));
     }
 
 	void setRotLE(const glm::fquat& rotation) {
         glm::fmat3 rotMat = glm::mat3_cast(rotation);
 
         x_x = rotMat[0][0];
-        y_x = rotMat[0][1];
-        z_x = rotMat[0][2];
-        x_y = rotMat[1][0];
+        y_x = rotMat[1][0];
+        z_x = rotMat[2][0];
+        x_y = rotMat[0][1];
         y_y = rotMat[1][1];
-        z_y = rotMat[1][2];
-        x_z = rotMat[2][0];
-        y_z = rotMat[2][1];
+        z_y = rotMat[2][1];
+        x_z = rotMat[0][2];
+        y_z = rotMat[1][2];
         z_z = rotMat[2][2];
     }
 };
