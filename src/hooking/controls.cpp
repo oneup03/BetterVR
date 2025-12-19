@@ -100,7 +100,40 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     static uint32_t oldCombinedHold = 0;
     uint32_t newXRBtnHold = 0;
 
-    // we need the stick inputs for some bindings
+    // initializing gesture related variables
+    bool leftHandBehindHead = false;
+    bool rightHandBehindHead = false;
+    bool leftHandCloseEnoughFromHead = false;
+    bool rightHandCloseEnoughFromHead = false;
+
+    // fetching motion states for gesture based inputs
+    const auto headset = VRManager::instance().XR->GetRenderer()->GetMiddlePose();
+    if (headset.has_value()) {
+        const auto headsetMtx = headset.value();
+        const auto headsetPosition = glm::fvec3(headsetMtx[3]);
+        const glm::fquat headsetRotation = glm::quat_cast(headsetMtx);
+        glm::fvec3 headsetForward = -glm::normalize(glm::fvec3(headsetMtx[2]));
+        headsetForward.y = 0.0f;
+        headsetForward = glm::normalize(headsetForward);
+        const auto leftHandPosition = ToGLM(inputs.inGame.poseLocation[0].pose.position);
+        const auto rightHandPosition = ToGLM(inputs.inGame.poseLocation[1].pose.position);
+        const glm::fvec3 headToleftHand = leftHandPosition - headsetPosition;
+        const glm::fvec3 headToRightHand = rightHandPosition - headsetPosition;
+
+        // check if hands are behind head
+        float leftHandForwardDot = glm::dot(headsetForward, headToleftHand);
+        float rightHandForwardDot = glm::dot(headsetForward, headToRightHand);
+        leftHandBehindHead = leftHandForwardDot < 0.0f;
+        rightHandBehindHead = rightHandForwardDot < 0.0f;
+
+        // check the head hand distances
+        constexpr float shoulderRadius = 0.35f; // meters
+        const float shoulderRadiusSq = shoulderRadius * shoulderRadius;
+        leftHandCloseEnoughFromHead = glm::length2(headToleftHand) < shoulderRadiusSq;
+        rightHandCloseEnoughFromHead = glm::length2(headToRightHand) < shoulderRadiusSq;
+    }
+
+    // fetching stick inputs
     XrActionStateVector2f& leftStickSource = inputs.inGame.in_game ? inputs.inGame.move : inputs.inMenu.navigate;
 
     if (inputs.inGame.in_game) {
@@ -113,29 +146,44 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.cancel, VPAD_BUTTON_B);
 
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.useRune, VPAD_BUTTON_L);
-        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.throwWeapon, VPAD_BUTTON_R);
+        //newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.throwWeapon, VPAD_BUTTON_R);
+        
+        
+        if (!leftHandCloseEnoughFromHead && !leftHandBehindHead) {
+            // When closing the dpad menu, this code triggers a grab since it also uses the grips. Will need a fix
+            // Not a big issue unless openning the menu near a grabbable item/weapon.
+            if (inputs.inGame.grabState[0].lastEvent == GrabButtonState::Event::ShortPress)
+                newXRBtnHold |= VPAD_BUTTON_A;
 
-        if (inputs.inGame.grabState[0].lastEvent == GrabButtonState::Event::ShortPress || inputs.inGame.grabState[1].lastEvent == GrabButtonState::Event::ShortPress)
-            newXRBtnHold |= VPAD_BUTTON_A;
+            if (inputs.inGame.grabState[0].wasDownLastFrame) {
+                if (leftStickSource.currentState.y >= 0.5f) {
+                    newXRBtnHold |= VPAD_BUTTON_UP;
+                }
+                else if (leftStickSource.currentState.y <= -0.5f) {
+                    newXRBtnHold |= VPAD_BUTTON_DOWN;
+                }
 
-        if (inputs.inGame.grabState[0].wasDownLastFrame)
-        {
-            if (leftStickSource.currentState.y >= 0.5f) {
-                newXRBtnHold |= VPAD_BUTTON_UP;
-            }
-            else if (leftStickSource.currentState.y <= -0.5f) {
-                newXRBtnHold |= VPAD_BUTTON_DOWN;
-            }
+                if (leftStickSource.currentState.x <= -0.5f) {
+                    newXRBtnHold |= VPAD_BUTTON_LEFT;
+                }
 
-            if (leftStickSource.currentState.x <= -0.5f) {
-                newXRBtnHold |= VPAD_BUTTON_LEFT;
-            }
-
-            else if (leftStickSource.currentState.x >= 0.5f) {
-                newXRBtnHold |= VPAD_BUTTON_RIGHT;
+                else if (leftStickSource.currentState.x >= 0.5f) {
+                    newXRBtnHold |= VPAD_BUTTON_RIGHT;
+                }
             }
         }
+        else if (leftHandCloseEnoughFromHead && leftHandBehindHead && inputs.inGame.grabState[0].wasDownLastFrame)
+            newXRBtnHold |= VPAD_BUTTON_R;
+
+        if (!rightHandCloseEnoughFromHead && !rightHandBehindHead)
+        {
+            if (inputs.inGame.grabState[1].lastEvent == GrabButtonState::Event::ShortPress)
+                newXRBtnHold |= VPAD_BUTTON_A;
+        }
+        else if (rightHandCloseEnoughFromHead && rightHandBehindHead && inputs.inGame.grabState[1].wasDownLastFrame)
+            newXRBtnHold |= VPAD_BUTTON_R;
         
+
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.leftTrigger, VPAD_BUTTON_ZL);
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.rightTrigger, VPAD_BUTTON_ZR);
     }
@@ -151,8 +199,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.leftTrigger, VPAD_BUTTON_L);
         newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.rightTrigger, VPAD_BUTTON_R);
 
-        if (inputs.inMenu.leftGrip.currentState)
-        {
+        if (inputs.inMenu.leftGrip.currentState) {
             if (leftStickSource.currentState.y >= 0.5f) {
                 newXRBtnHold |= VPAD_BUTTON_UP;
             }

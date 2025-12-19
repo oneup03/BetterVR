@@ -330,6 +330,15 @@ void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
         weapon.setupAttackSensor.isContactLayerInitialized = 0;
         writeMemory(weaponPtr, &weapon);
     }
+
+    //rumbles
+    float handVelocity = m_motionAnalyzers[heldIndex].handVelocityLength;
+    Log::print<INFO>("velocity lenght : {}", handVelocity);
+    if (handVelocity >= 2.0f)
+    {
+        handVelocity -= 2.0f;
+        VRManager::instance().XR->GetRumbleManager()->startSimpleRumble(0.1, 0.5f * handVelocity, 0.7f * handVelocity);
+    }
 }
 
 void CemuHooks::hook_SetPlayerWeaponScale(PPCInterpreter_t* hCPU) {

@@ -66,6 +66,7 @@ using Microsoft::WRL::ComPtr;
 #include <glm/gtc/type_ptr.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/norm.hpp>
 #include <glm/gtx/string_cast.hpp>
 #undef GLM_ENABLE_EXPERIMENTAL
 

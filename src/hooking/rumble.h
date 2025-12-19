@@ -38,6 +38,24 @@ public:
         stop_haptic();
     }
 
+    void startSimpleRumble(double duration, float frequency, float amplitude) {
+        // duration is in seconds
+        XrHapticVibration vibration = {};
+        vibration.type = XR_TYPE_HAPTIC_VIBRATION;
+        vibration.next = nullptr;
+        vibration.duration = (XrDuration)(duration * 1e9);;
+        vibration.frequency = frequency;
+        vibration.amplitude = amplitude;
+
+        XrHapticActionInfo haptic_info = {};
+        haptic_info.type = XR_TYPE_HAPTIC_ACTION_INFO;
+        haptic_info.next = nullptr;
+        haptic_info.action = m_haptic_action;
+        haptic_info.subactionPath = m_subaction_path;
+
+        checkXRResult(xrApplyHapticFeedback(m_session, &haptic_info, (const XrHapticBaseHeader*)&vibration), "Failed to start rumble");
+    }
+
 private:
     bool push_rumble(uint8_t* pattern, uint8_t length) {
         if (pattern == nullptr || length == 0) {
