@@ -859,4 +859,4 @@ mtlr r0
 addi r1, r1, 0x20
 blr
 
-;0x030C1008 = ba custom_sead__Projection__getProjectionMatrix
+0x030C1008 = ba custom_sead__Projection__getProjectionMatrix
