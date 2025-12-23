@@ -55,13 +55,13 @@ $allowGamepadInput:int = 0
 # Left Or Right Handed
 [Preset]
 name = Left-Handed Weapon (Shield On Right Hand)
-category = Left Or Right Handed
+category = Left Or Right Handed (Not Working Yet)
 condition = $cameraMode == 1
 $leftHanded:int = 1
 
 [Preset]
 name = Right-Handed Weapon (Default)
-category = Left Or Right Handed
+category = Left Or Right Handed (Not Working Yet)
 condition = $cameraMode == 1
 default = 1
 $leftHanded:int = 0
@@ -100,20 +100,6 @@ name = Use Fullscreen During Third-Person Cutscenes (Recommended For Brave Peopl
 category = Cutscene Black Bars
 default = 1
 $cutsceneBlackBars:int = 0
-
-
-# Enable 2D VR View
-[Preset]
-name = Enabled (Default, Experimental)
-category = Keep 2D VR View In Cemu Window
-default = 1
-$enable2DView:int = 1
-
-[Preset]
-name = Disabled (May Resolve GPU/Rendering Crashes)
-category = Keep 2D VR View In Cemu Window
-$enable2DView:int = 0
-$enableDebugOverlay:int = 0
 
 
 # 2D Viewer - Crop VR Image To 16:9
@@ -225,4 +211,5 @@ $enableDebugOverlay:int = 1
 name = Disabled (Default)
 category = Enable VR Debugging Overlay (Experimental)
 condition = $enable2DView == 1
+default = 1
 $enableDebugOverlay:int = 0

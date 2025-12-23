@@ -10,7 +10,7 @@ void CemuHooks::hook_BeginCameraSide(PPCInterpreter_t* hCPU) {
 
     Log::print<RENDERING>("");
     Log::print<RENDERING>("===============================================================================");
-    Log::print<RENDERING>("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side == OpenXR::EyeSide::LEFT ? "LEFT" : "RIGHT");
+    Log::print<RENDERING>("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side);
 
     RND_Renderer* renderer = VRManager::instance().XR->GetRenderer();
 
@@ -42,7 +42,7 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
 
     // read the camera matrix from the game's memory
     uint32_t ppc_cameraMatrixOffsetIn = hCPU->gpr[31];
-    OpenXR::EyeSide ppc_cameraSide = hCPU->gpr[3] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
+    OpenXR::EyeSide side = hCPU->gpr[3] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
     ActCamera actCam = {};
     readMemory(ppc_cameraMatrixOffsetIn, &actCam);
 
@@ -54,6 +54,8 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
     glm::fvec3 oldCameraUnknown = actCam.finalCamMtx.unknown.getLE();
     float extraValue0 = actCam.finalCamMtx.zNear.getLE();
     float extraValue1 = actCam.finalCamMtx.zFar.getLE();
+
+    Log::print<RENDERING>("[{}] Getting gameplay camera (pos = {})", side, oldCameraPosition);
 
     // remove verticality from the camera position to avoid pitch changes that aren't from the VR headset
     oldCameraPosition.y = oldCameraTarget.y;
@@ -120,7 +122,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
     uint32_t cameraIn = hCPU->gpr[3];
     uint32_t cameraOut = hCPU->gpr[12];
-    OpenXR::EyeSide cameraSide = hCPU->gpr[11] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
+    OpenXR::EyeSide side = hCPU->gpr[11] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
 
     if (CemuHooks::UseBlackBarsDuringEvents()) {
         return;
@@ -129,7 +131,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     BESeadLookAtCamera camera = {};
     readMemory(cameraIn, &camera);
 
-    Log::print<RENDERING>("Getting render camera for {} side", cameraSide == OpenXR::EyeSide::LEFT ? "left" : "right");
+    Log::print<RENDERING>("[{}] Getting render camera", side);
 
     //s_lastCameraMtx = glm::fmat4x3(glm::inverse(glm::mat4(camera.mtx.getLEMatrix()))); // glm::inverse(glm::lookAtRH(camera.pos.getLE(), camera.at.getLE(), camera.up.getLE()));
 
@@ -163,7 +165,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     s_lastCameraMtx = glm::fmat4x3(glm::translate(glm::identity<glm::fmat4>(), basePos) * glm::mat4(baseRot));
 
     // vr camera
-    std::optional<XrPosef> currPoseOpt = VRManager::instance().XR->GetRenderer()->GetPose(cameraSide);
+    std::optional<XrPosef> currPoseOpt = VRManager::instance().XR->GetRenderer()->GetPose(side);
     if (!currPoseOpt.has_value())
         return;
     glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
@@ -252,10 +254,12 @@ void CemuHooks::hook_GetRenderProjection(PPCInterpreter_t* hCPU) {
 
     uint32_t projectionIn = hCPU->gpr[3];
     uint32_t projectionOut = hCPU->gpr[12];
-    OpenXR::EyeSide side = hCPU->gpr[0] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
+    OpenXR::EyeSide side = hCPU->gpr[0] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
 
     BESeadPerspectiveProjection perspectiveProjection = {};
     readMemory(projectionIn, &perspectiveProjection);
+
+    Log::print<RENDERING>("[{}] Render Proj. (LR: {:08X}): {}", side, hCPU->sprNew.LR, perspectiveProjection);
 
     if (perspectiveProjection.zFar == 10000.0f) {
         return;
@@ -315,7 +319,7 @@ void CemuHooks::hook_ModifyLightPrePassProjectionMatrix(PPCInterpreter_t* hCPU) 
     }
 
     uint32_t projectionIn = hCPU->gpr[3];
-    OpenXR::EyeSide side = hCPU->gpr[11] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
+    OpenXR::EyeSide side = hCPU->gpr[11] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
 
     BESeadPerspectiveProjection perspectiveProjection = {};
     readMemory(projectionIn, &perspectiveProjection);
@@ -323,6 +327,9 @@ void CemuHooks::hook_ModifyLightPrePassProjectionMatrix(PPCInterpreter_t* hCPU) 
     if (!VRManager::instance().XR->GetRenderer()->GetFOV(side).has_value()) {
         return;
     }
+
+    Log::print<RENDERING>("[{}] Modify light prepass projection", side);
+
 
     XrFovf currFOV = VRManager::instance().XR->GetRenderer()->GetFOV(side).value();
     auto newProjection = calculateFOVAndOffset(currFOV);
@@ -376,7 +383,7 @@ void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
         }
     }
 
-    Log::print<RENDERING>("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side == OpenXR::EyeSide::LEFT ? "LEFT" : "RIGHT");
+    Log::print<RENDERING>("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side);
     Log::print<RENDERING>("===============================================================================");
     Log::print<RENDERING>("");
 }
@@ -391,14 +398,14 @@ void CemuHooks::hook_ReplaceCameraMode(PPCInterpreter_t* hCPU) {
     constexpr uint32_t kCameraChaseVtbl = 0x101B34F4;
 
     if (hCPU->gpr[5] == kCameraChaseVtbl) {
-        //Log::print("Current camera mode: {:#X}, tail mode: {:#X}, vtbl: {:#X}", currentCameraMode, cameraTailMode, currentCameraVtbl);
+        //Log::print<RENDERING>("Current camera mode: {:#X}, tail mode: {:#X}, vtbl: {:#X}", currentCameraMode, cameraTailMode, currentCameraVtbl);
         if (IsFirstPerson()) {
             // overwrite to tail mode
             //hCPU->gpr[3] = cameraTailMode;
         }
     }
 
-    //Log::print<VERBOSE>("Camera mode: {:#X}, tail mode: {:#X}, vtbl: {:#X}", currentCameraMode, cameraTailMode, currentCameraVtbl);
+    Log::print<RENDERING>("Camera mode: {:#X}, tail mode: {:#X}, vtbl: {:#X}", currentCameraMode, cameraTailMode, currentCameraVtbl);
 }
 
 void CemuHooks::hook_UseCameraDistance(PPCInterpreter_t* hCPU) {

@@ -145,12 +145,15 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
             VulkanUtils::DebugPipelineBarrier(commandBuffer);
             VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
 
-            // note: Uses vkCmdCopyImage to copy the (right-eye-only) image to the imgui overlay's texture
-            float aspectRatio = layer3D->GetAspectRatio(side);
-            imguiOverlay->Draw3DLayerAsBackground(commandBuffer, image, aspectRatio, frameIdx);
+            // imgui needs only one eye to render Cemu's 2D output, so use right side since it looks better
+            if (side == EyeSide::RIGHT) {
+                // note: Uses vkCmdCopyImage to copy the (right-eye-only) image to the imgui overlay's texture
+                float aspectRatio = layer3D->GetAspectRatio(side);
+                imguiOverlay->Draw3DLayerAsBackground(commandBuffer, image, aspectRatio, frameIdx);
 
-            VulkanUtils::DebugPipelineBarrier(commandBuffer);
-            VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+                VulkanUtils::DebugPipelineBarrier(commandBuffer);
+                VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+            }
 
             // clear the image to be transparent to allow for the HUD to be rendered on top of it which results in a transparent HUD layer
             const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };

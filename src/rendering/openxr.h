@@ -200,4 +200,12 @@ private:
     PFN_xrCreateDebugUtilsMessengerEXT func_xrCreateDebugUtilsMessengerEXT = nullptr;
     PFN_xrDestroyDebugUtilsMessengerEXT func_xrDestroyDebugUtilsMessengerEXT = nullptr;
 };
-using ButtonState = OpenXR::InputState::InGame::ButtonState; 
+using ButtonState = OpenXR::InputState::InGame::ButtonState;
+using EyeSide = OpenXR::EyeSide;
+
+template <>
+struct std::formatter<EyeSide> : std::formatter<string> {
+    auto format(const EyeSide side, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "{}", side == EyeSide::LEFT ? "LEFT" : "RIGHT");
+    }
+};

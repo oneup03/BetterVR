@@ -10,7 +10,7 @@ if exist "%ZIP_NAME%" del "%ZIP_NAME%"
 
 REM Create directory structure
 mkdir "%TEMP_DIR%"
-mkdir "%TEMP_DIR%\graphicPacks\BreathOfTheWild_BetterVR"
+mkdir "%TEMP_DIR%\BreathOfTheWild_BetterVR"
 
 REM Copy DLL
 if exist "Cemu\BetterVR_Layer.dll" (
@@ -78,7 +78,7 @@ if exist "resources\BetterVR UNINSTALL.bat" (
 
 REM Copy Graphic Packs
 if exist "resources\BreathOfTheWild_BetterVR" (
-    xcopy /E /I /Y "resources\BreathOfTheWild_BetterVR" "%TEMP_DIR%\graphicPacks\BreathOfTheWild_BetterVR" >nul
+    xcopy /E /I /Y "resources\BreathOfTheWild_BetterVR" "%TEMP_DIR%\BreathOfTheWild_BetterVR" >nul
     echo Copied BreathOfTheWild_BetterVR resources
 ) else (
     echo Error: resources\BreathOfTheWild_BetterVR not found.

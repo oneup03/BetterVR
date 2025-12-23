@@ -47,7 +47,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Bottle_Mes,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Carnivorous_Boy,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "CarryingBlueFireEXMini,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "ClearRemains,FP_OFF,PAN_ON,HND_OFF,CTRL_ON"
+.string "ClearRemains,FP_ON,PAN_ON,HND_OFF,CTRL_ON" ; GraceGet
 .string "Cliff_Maze,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Common,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "CompleteDungeon,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -145,7 +145,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo330_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Snaarathi Race] Demo at the start of the race
 .string "Demo330_1,FP_ON,PAN_OFF,HND_OFF,CTRL_ON" ; name: [Snaarathi Race] Demo when I gave a new record
 .string "Demo331_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: [Do not step on flowers] Flower lady getting angry | https://www.youtube.com/watch?v=Tx0sx6M-nLI
-.string "Demo333_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Stationary Guardian activation demo | Zoom-ins on stationary guardians on the great plateau https://www.youtube.com/watch?v=FeGfQ5zN5ZM
+.string "Demo333_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Stationary Guardian activation demo | Zoom-ins on stationary guardians on the great plateau https://www.youtube.com/watch?v=FeGfQ5zN5ZM  By default, this makes the camera go absolutely crazy, often spinning rapidly and flying up into the sky. Both in first and third person mode.
 .string "Demo344_0,FP_ON,PAN_OFF,HND_OFF,CTRL_ON" ; name: Vah Ruta before scream demo | TODO: Could check out whether calling the demo of the beast rising from the ground switches the demo id that the mod receives, or whether it's separate.  You talk to the king of the Zora domain, and a bunch of advisors. Link stays put in one place. It calls another Demo that shows the elephant rising from the water and roaring: https://www.youtube.com/watch?v=nQkO5UeoJm0
 .string "Demo344_1,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Vah Ruta last attack demo
 .string "Demo344_2,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: [Vah Ruta] Sidon joins
@@ -162,7 +162,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo347_2,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Vah Naboris Challenge] Generating barrier with Thunder Helm demo
 .string "Demo347_3,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Vah Naboris Challenge] Last attack on Vah Naboris demo | https://youtu.be/UH2mAfvC2HI?t=11649
 .string "Demo347_4,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Introducing the gods of thunder The demonstrating animals before demo
-.string "Demo347_5,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; name: First meeting with Riju
+.string "Demo347_5,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: First meeting with Riju
 .string "Demo347_6,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: The Vah Naboris rouge suffers a thunderous helmet
 .string "Demo348_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Demonstration of breaking the last battery of Vah Medohs
 .string "Demo348_1,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Before Vah Medoh's cry
@@ -239,7 +239,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo706_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Vah Naboris - Explanation by the champion on first time enter
 .string "Demo707_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Inventory increase by Hestu | Dance animation from hestu
 .string "Demo708_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Vah Ruta - Explanation by the champion on first time enter
-.string "Demo709_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Vah Naboris - Attack point demo
+.string "Demo709_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Vah Naboris - Attack point demo | I think this is cooler in 3rd person
 .string "Demo710_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Leaving the plateau for the first time
 .string "Demo712_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Vah Medoh - Transition to second half of Blight Ganon battle
 .string "Demo712_1,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Vah Rudania - Transition to second half of Blight Ganon battle
@@ -288,7 +288,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Gerudo_Ch_Helmet,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; https://www.youtube.com/watch?v=WXlf12vosMc
 .string "Gerudo_Ch_Poison,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Gerudo_Ch_SandWarm,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Gerudo_Ch_SecretClub,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Gerudo_Ch_SecretClub,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Gerudo_Ch_SnowBoots,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Gerudo_Ch_SnowMT,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Gerudo_HorseBuyer,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
@@ -342,7 +342,7 @@ data_TableOfCutsceneEventsSettings:
 .string "KorokMini_RodShiren,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "KorokMini_UMAShiren,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "MacuseIseki,FP_OFF,PAN_ON,HND_OFF,CTRL_ON"
-.string "MagneticFld,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "MagneticFld,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; Gerudo at east gate points you to the statues with the swords.
 .string "MarittaMini_BigWhales,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "MinakkareMini_Dragonfly,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "MinamihateeluMini_touzoku,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -358,7 +358,7 @@ data_TableOfCutsceneEventsSettings:
 .string "MiniGame_ParasailRide,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_ShieldSurfing,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_SmashGolf,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
-.string "MiniGame_TimeLimitHunting,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "MiniGame_TimeLimitHunting,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MouthofDragon,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MtMotelMini_Landscape,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "My_Hero,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -366,7 +366,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_AncientAssistant001,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_AncientAssistant003,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_AncientAssistant004,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_AncientDoctor,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_AncientDoctor,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; Purah after u upgrade the slate to the max.
 .string "Npc_AncientDoctor_Hateno,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "NPC_artist_000,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "NPC_artist_001,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -482,7 +482,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_HatenoVillage010,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_HatenoVillage011,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_HatenoVillage012,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
-.string "Npc_HatenoVillage013,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_HatenoVillage013,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Npc_HatenoVillage014,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_HatenoVillage015,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_HatenoVillage016,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -649,7 +649,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_oasis018,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis019,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis020,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_oasis021,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_oasis021,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis022,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis023,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis024,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -659,7 +659,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_oasis028,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis029,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis032,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_oasis036,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_oasis036,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis037,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis038,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_oasis039,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -692,7 +692,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_OasisStudent_A,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_OasisStudent_B,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_OasisStudent_C,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_OasisTeacher,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_OasisTeacher,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_OasisWaterChannel,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_OldKorok,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_OldKorok_Forest,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -770,7 +770,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_SouthernVillage006,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_SouthernVillage007,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_SouthernVillage008,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_SouthernVillage009,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_SouthernVillage009,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Npc_SouthernVillage010,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_SouthernVillage012,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_SouthernVillage013,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -779,7 +779,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_SouthernVillage016,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_SouthHateru005,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_SouthHateru006,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_SouthHateru007,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_SouthHateru007,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; Hino
 .string "Npc_Strange_Beacon,FP_ON,PAN_OFF,HND_OFF,CTRL_ON"
 .string "Npc_TabantaBridgeHatago001,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_TabantaBridgeHatago002,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -840,7 +840,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_Zora009,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora010,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora011,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_Zora012,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_Zora012,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Npc_Zora013,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora014,FP_ON,PAN_OFF,HND_OFF,CTRL_ON"
 .string "Npc_Zora015,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -851,7 +851,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_Zora028,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora029,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora031,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_Zora032,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_Zora032,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora033,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora034,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_Zora035,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -872,7 +872,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Obj_DiaryTamul_A_02,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Obj_DiaryTamul_A_03,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Obj_DiaryTamul_A_04,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Obj_DiaryTamul_A_05,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Obj_DiaryTamul_A_05,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Obj_Diary_touzoku_01,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Obj_Diary_touzoku_02,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Obj_DRStone_A_01,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
@@ -902,7 +902,7 @@ data_TableOfCutsceneEventsSettings:
 .string "SDemo_B-7,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "SDemo_D-6,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "SDemo_F-2,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
-.string "SearchStone,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "SearchStone,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "SecretofObject,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "SeekerEye,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "SetugenUmayadoMini_Umahonephoto,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -915,7 +915,7 @@ data_TableOfCutsceneEventsSettings:
 .string "SignboardWood_Mamono,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "SnowBall,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Solitary_Maze,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "StatueofZora,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "StatueofZora,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; Anyone you talk to thats near the Mipha statue.
 .string "StolenBook,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Strange_Beacon_CookSet,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "subchallnpc000,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -985,7 +985,7 @@ data_TableOfCutsceneEventsSettings:
 .string "UotoriMini_RecipeSea,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "UotoriMini_RecoverBay,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "UotoriMini_SinkTreasure,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Water_Relic,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Water_Relic,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; Sidon and Muzu talk in front of Miphas statue.
 .string "Wind_Relic,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "XXX,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Yorozuya_Kaiwa,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
