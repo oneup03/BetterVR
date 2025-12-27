@@ -30,8 +30,11 @@ static std::pair<glm::quat, glm::quat> swingTwistY(const glm::quat& q) {
     return { swing, twist };
 }
 
+constexpr float hardcodedSwimOffset = 1.73f/* model height*/ - 0.3f /*head height*/;
+
 glm::fvec3 s_wsCameraPosition = glm::fvec3();
 glm::fquat s_wsCameraRotation = glm::identity<glm::fquat>();
+bool s_isSwimming = false;
 
 void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
@@ -70,9 +73,18 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
 
     // rebase the rotation to the player position
     if (IsFirstPerson()) {
-        BEMatrix34 mtx = {};
-        readMemory(s_playerMtxAddress, &mtx);
-        glm::fvec3 playerPos = mtx.getPos().getLE();
+        // check if player is swimming
+        Player actor;
+        readMemory(s_playerAddress, &actor);
+
+        PlayerMoveBitFlags moveBits = actor.moveBitFlags.getLE();
+        s_isSwimming = (std::to_underlying(moveBits) & std::to_underlying(PlayerMoveBitFlags::SWIMMING_1024)) != 0;
+
+        // read player MTX
+        BEMatrix34& mtx = actor.mtx;
+        glm::fvec3 playerPos = actor.mtx.getPos().getLE();
+
+        playerPos.y += s_isSwimming ? hardcodedSwimOffset : 0.0f;
 
         if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
             if (settings->ignoreCameraRotation) {
@@ -151,6 +163,8 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
         BEMatrix34 mtx = {};
         readMemory(s_playerMtxAddress, &mtx);
         glm::fvec3 playerPos = mtx.getPos().getLE();
+
+        playerPos.y += s_isSwimming ? hardcodedSwimOffset : 0.0f;
 
         basePos = playerPos;
         if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
