@@ -101,9 +101,9 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
             s_isLadderClimbing--;
         }
 
-        if (s_isLadderClimbing) {
-            s_wsCameraRotation *= glm::angleAxis(glm::radians(180.0f), glm::fvec3(0, 1, 0));
-        }
+        //if (s_isLadderClimbing) {
+        //    s_wsCameraRotation *= glm::angleAxis(glm::radians(180.0f), glm::fvec3(0, 1, 0));
+        //}
 
         glm::mat4 playerMtx4 = glm::inverse(glm::translate(glm::identity<glm::mat4>(), playerPos) * glm::mat4(s_wsCameraRotation));
         existingGameMtx = playerMtx4;
@@ -188,9 +188,9 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
             }
         }
         
-        if (s_isLadderClimbing) {
-            baseYaw *= glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
-        }
+        //if (s_isLadderClimbing) {
+        //    baseYaw *= glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
+        //}
     }
 
     s_lastCameraMtx = glm::fmat4x3(glm::translate(glm::identity<glm::fmat4>(), basePos) * glm::mat4(baseYawWithoutClimbingFix));
