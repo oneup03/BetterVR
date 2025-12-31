@@ -37,7 +37,7 @@ Log::Log() {
     SetConsoleTitleA("BetterVR Debugging Console");
     consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 #ifndef _DEBUG
-    logFile.open("BetterVR_log.txt", std::ios::out | std::ios::trunc);
+    logFile.open("BetterVR.txt", std::ios::out | std::ios::trunc);
 #endif
     Log::print<INFO>("Successfully started BetterVR!");
     LogSystemHardwareInfo();
