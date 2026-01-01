@@ -456,7 +456,7 @@ void CemuHooks::hook_UseCameraDistance(PPCInterpreter_t* hCPU) {
 void CemuHooks::hook_SetActorOpacity(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    double toBeSetOpacity = hCPU->fpr[1].fp0;
+    float toBeSetOpacity = hCPU->fpr[1].fp0;
     uint32_t actorPtr = hCPU->gpr[3];
 
     ActorWiiU actor;
