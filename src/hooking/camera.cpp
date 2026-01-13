@@ -57,7 +57,7 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
     Log::print<RENDERING>("[{}] Getting gameplay camera (pos = {})", side, oldCameraPosition);
 
     // remove verticality from the camera position to avoid pitch changes that aren't from the VR headset
-    oldCameraPosition.y = oldCameraTarget.y;
+    // oldCameraPosition.y = oldCameraTarget.y;
 
     // construct glm matrix from the existing camera parameters
     glm::mat4 existingGameMtx = glm::lookAtRH(oldCameraPosition, oldCameraTarget, oldCameraUp);
@@ -208,9 +208,11 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
         return;
     glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
     glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
+	eyePos.y = 0.0f;                 // blunt
 
     glm::vec3 newPos = basePos + (baseYaw * eyePos);
-    glm::fquat newRot = baseYaw * eyeRot;
+    // glm::fquat newRot = baseYaw * eyeRot;
+    glm::fquat newRot = baseRot;
 
     glm::mat4 newWorldVR = glm::translate(glm::mat4(1.0f), newPos) * glm::mat4_cast(newRot);
     glm::mat4 newViewVR = glm::inverse(newWorldVR);
