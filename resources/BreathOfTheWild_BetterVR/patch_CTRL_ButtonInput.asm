@@ -33,6 +33,12 @@ lwz r7, 0x00(r7)
 cmpwi r7, 0
 ;beq exitHookInput ; uncomment to only enable XR input when also using gamepad input
 
+; if Standard Controls, skip XR VPAD injection entirely
+li r7, $nativeCtrlEnabled
+cmpwi r7, 1
+beq exitHookInput
+
+
 ; override input with XR input
 lwz r7, 0x04(r1)
 bl import.coreinit.hook_InjectXRInput

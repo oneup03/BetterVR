@@ -736,7 +736,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
                     ImGui::Text("Camera / Player Options");
                     ImGui::PopStyleColor();
-                    if (cameraMode == CameraMode::THIRD_PERSON) {
+                    if (cameraMode == CameraMode::THIRD_PERSON || cameraMode == CameraMode::ORIGINAL) {
                         DrawSettingRow("Camera Distance", [&]() {
                             settings.thirdPlayerDistance.AddSliderToGUI(&changed, 0.5f, 0.65f);
                         });
@@ -774,7 +774,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     ImGui::Text("Cutscenes");
                     ImGui::PopStyleColor();
 
-                    if (cameraMode != CameraMode::THIRD_PERSON) {
+                    if (cameraMode != CameraMode::THIRD_PERSON && cameraMode != CameraMode::ORIGINAL) {
                         DrawSettingRow("Camera In Cutscenes", [&]() {
                             settings.cutsceneCameraMode.AddComboToGUI(&changed, ModSettings::toDisplayString);
                         });
