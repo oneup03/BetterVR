@@ -489,6 +489,7 @@ enum class EventMode : int32_t {
 enum class CameraMode : int32_t {
     THIRD_PERSON = 0,
     FIRST_PERSON = 1,
+    ORIGINAL = 2,
 };
 
 enum class PlayMode : int32_t {
@@ -543,6 +544,8 @@ struct ModSettings {
                 return "THIRD_PERSON";
             case CameraMode::FIRST_PERSON:
                 return "FIRST_PERSON";
+            case CameraMode::ORIGINAL:
+                return "OG";
             default:
                 return "";
         }
@@ -554,6 +557,8 @@ struct ModSettings {
                 return "Third Person";
             case CameraMode::FIRST_PERSON:
                 return "First Person (Recommended)";
+            case CameraMode::ORIGINAL:
+                return "OG";
             default:
                 return "";
         }
@@ -637,7 +642,7 @@ struct ModSettings {
     static constexpr float kDefaultStickDeadzone = 0.15f;
 
     // playing mode settings
-    EnumSetting<CameraMode> cameraMode = EnumSetting<CameraMode>("CameraMode", CameraMode::FIRST_PERSON, ModSettings::toString, { CameraMode::FIRST_PERSON, CameraMode::THIRD_PERSON });
+    EnumSetting<CameraMode> cameraMode = EnumSetting<CameraMode>("CameraMode", CameraMode::FIRST_PERSON, ModSettings::toString, { CameraMode::FIRST_PERSON, CameraMode::THIRD_PERSON, CameraMode::ORIGINAL });
     EnumSetting<PlayMode> playMode = EnumSetting<PlayMode>("PlayMode", PlayMode::STANDING, ModSettings::toString, { PlayMode::STANDING, PlayMode::SEATED });
     FloatSetting<float> thirdPlayerDistance = FloatSetting<float>("ThirdPlayerDistance", 0.5f, 0.0f);
     EnumSetting<EventMode> cutsceneCameraMode = EnumSetting<EventMode>("CutsceneCameraMode", EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS, ModSettings::toString, { EventMode::ALWAYS_FIRST_PERSON, EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS, EventMode::ALWAYS_THIRD_PERSON });
@@ -691,16 +696,16 @@ struct ModSettings {
     bool DoesUIFollowGaze() const { return uiFollowsGaze; }
     bool IsLeftHanded() const { return leftHanded; }
     float GetPlayerHeightOffset() const {
-        // disable height offset in third-person mode
-        if (GetCameraMode() == CameraMode::THIRD_PERSON) {
+        // disable height offset in third-person-style modes
+        if (GetCameraMode() == CameraMode::THIRD_PERSON || GetCameraMode() == CameraMode::ORIGINAL) {
             return 0.0f;
         }
 
         return playerHeightOffset;
     }
     EventMode GetCutsceneCameraMode() const {
-        // if in third-person mode, always use third-person cutscene camera
-        if (GetCameraMode() == CameraMode::THIRD_PERSON) {
+        // if in third-person-style modes, always use third-person cutscene camera
+        if (GetCameraMode() == CameraMode::THIRD_PERSON || GetCameraMode() == CameraMode::ORIGINAL) {
             return EventMode::ALWAYS_THIRD_PERSON;
         }
         return cutsceneCameraMode;

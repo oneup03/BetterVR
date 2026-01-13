@@ -71,6 +71,39 @@ static glm::mat4 calculateProjectionMatrix(float nearZ, float farZ, const XrFovf
     return dst;
 }
 
+static glm::fvec3 ApplyCameraModeEyePosPolicy(glm::fvec3 eyePos, CameraMode cameraMode) {
+    if (cameraMode == CameraMode::ORIGINAL) {
+        eyePos.y = 0.0f;
+    }
+
+    return eyePos;
+}
+
+static glm::fquat ApplyCameraModeEyeRotPolicy(const glm::fquat& baseYaw, const glm::fquat& baseRot, const glm::fquat& eyeRot, CameraMode cameraMode) {
+    if (cameraMode == CameraMode::ORIGINAL) {
+        return baseRot * eyeRot;
+    }
+
+    return baseYaw * eyeRot;
+}
+
+static glm::fvec3 ApplyCameraModeEyeOffsetPolicy(const glm::fquat& baseYaw, const glm::fquat& baseRot, const glm::fvec3& eyePos, CameraMode cameraMode) {
+    if (cameraMode == CameraMode::ORIGINAL) {
+        return baseRot * eyePos;
+    }
+
+    return baseYaw * eyePos;
+}
+
+static void SetLookAtCameraVectorsFromPose(BESeadLookAtCamera& camera, const glm::vec3& position, const glm::fquat& rotation) {
+    const glm::vec3 forward = glm::normalize(rotation * glm::fvec3(0.0f, 0.0f, -1.0f));
+    const glm::vec3 up = glm::normalize(rotation * glm::fvec3(0.0f, 1.0f, 0.0f));
+
+    camera.pos = position;
+    camera.at = position + forward;
+    camera.up = up;
+}
+
 
 float hardcodedSwimOffset = 0.0f;
 float hardcodedRidingOffset = 0.65f;
@@ -212,9 +245,14 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
         return;
     }
     auto& views = viewsOpt.value();
+    glm::mat4 viewsForGameplay = views;
+
+    glm::fvec3 middleEyePos = glm::fvec3(viewsForGameplay[3]);
+    middleEyePos = ApplyCameraModeEyePosPolicy(middleEyePos, GetSettings().GetCameraMode());
+    viewsForGameplay[3] = glm::fvec4(middleEyePos, viewsForGameplay[3].w);
 
     // calculate final camera matrix
-    glm::mat4 finalPose = glm::inverse(existingGameMtx) * views;
+    glm::mat4 finalPose = glm::inverse(existingGameMtx) * viewsForGameplay;
 
     // extract camera up, forward and position from the final matrix
     glm::fvec3 camPos = glm::fvec3(finalPose[3]);
@@ -295,7 +333,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     glm::mat4x3 viewMatrix = camera.mtx.getLEMatrix();
     glm::mat4 worldGame = glm::inverse(glm::mat4(viewMatrix));
     glm::vec3 basePos = glm::vec3(worldGame[3]);
-    glm::quat baseRot = glm::quat_cast(worldGame);
+    glm::fquat baseRot = glm::quat_cast(worldGame);
 
     // overwrite with our stored camera pos/rot
     basePos = s_wsCameraPosition;
@@ -340,8 +378,11 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
     glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
-    glm::vec3 newPos = basePos + (baseYaw * eyePos);
-    glm::fquat newRot = baseYaw * eyeRot;
+    CameraMode cameraMode = GetSettings().GetCameraMode();
+    eyePos = ApplyCameraModeEyePosPolicy(eyePos, cameraMode);
+
+    glm::vec3 newPos = basePos + ApplyCameraModeEyeOffsetPolicy(baseYaw, baseRot, eyePos, cameraMode);
+    glm::fquat newRot = ApplyCameraModeEyeRotPolicy(baseYaw, baseRot, eyeRot, cameraMode);
 
     glm::mat4 newWorldVR = glm::translate(glm::mat4(1.0f), newPos) * glm::mat4_cast(newRot);
     glm::mat4 newViewVR = glm::inverse(newWorldVR);
@@ -362,15 +403,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
 
     camera.mtx.setLEMatrix(newViewVR);
 
-    camera.pos = newPos;
-
-    // Set look-at point by offsetting position in view direction
-    glm::vec3 viewDir = -glm::vec3(newViewVR[2]); // Forward direction is -Z in view space
-    camera.at = newPos + viewDir;
-
-    // Transform world up vector by new rotation
-    glm::vec3 upDir = glm::vec3(newViewVR[1]); // Up direction is +Y in view space
-    camera.up = upDir;
+    SetLookAtCameraVectorsFromPose(camera, newPos, newRot);
 
 
     //glm::mat4 workingMtx = glm::inverse(glm::lookAtRH(newPos, newPos + glm::vec3(newViewVR[2]), glm::fvec3(0, 1, 0)));
@@ -546,7 +579,7 @@ void CemuHooks::hook_ModifyProjectionUsingCamera(PPCInterpreter_t* hCPU) {
         glm::mat4x3 viewMatrix = camera.mtx.getLEMatrix();
         glm::mat4 worldGame = glm::inverse(glm::mat4(viewMatrix));
         glm::vec3 basePos = glm::vec3(worldGame[3]);
-        glm::quat baseRot = glm::quat_cast(worldGame);
+        glm::fquat baseRot = glm::quat_cast(worldGame);
 
         // ignore the current rotation since it is already changed by the gameplay camera hooking
         baseRot = s_wsCameraRotation;
@@ -574,23 +607,18 @@ void CemuHooks::hook_ModifyProjectionUsingCamera(PPCInterpreter_t* hCPU) {
         glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
         glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
-        glm::vec3 newPos = basePos + (baseYaw * eyePos);
-        glm::fquat newRot = baseYaw * eyeRot;
+        CameraMode cameraMode = GetSettings().GetCameraMode();
+        eyePos = ApplyCameraModeEyePosPolicy(eyePos, cameraMode);
+
+        glm::vec3 newPos = basePos + ApplyCameraModeEyeOffsetPolicy(baseYaw, baseRot, eyePos, cameraMode);
+        glm::fquat newRot = ApplyCameraModeEyeRotPolicy(baseYaw, baseRot, eyeRot, cameraMode);
 
         glm::mat4 newWorldVR = glm::translate(glm::mat4(1.0f), newPos) * glm::mat4_cast(newRot);
         glm::mat4 newViewVR = glm::inverse(newWorldVR);
 
         camera.mtx.setLEMatrix(newViewVR);
 
-        camera.pos = newPos;
-
-        // Set look-at point by offsetting position in view direction
-        glm::vec3 viewDir = -glm::vec3(newViewVR[2]); // Forward direction is -Z in view space
-        camera.at = newPos + viewDir;
-
-        // Transform world up vector by new rotation
-        glm::vec3 upDir = glm::vec3(newViewVR[1]); // Up direction is +Y in view space
-        camera.up = upDir;
+        SetLookAtCameraVectorsFromPose(camera, newPos, newRot);
 
         writeMemory(cameraPtr, &camera);
     }
@@ -643,7 +671,7 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
     glm::mat4x3 viewMatrix = camera.mtx.getLEMatrix();
     glm::mat4 worldGame = glm::inverse(glm::mat4(viewMatrix));
     glm::vec3 basePos = glm::vec3(worldGame[3]);
-    glm::quat baseRot = glm::quat_cast(worldGame);
+    glm::fquat baseRot = glm::quat_cast(worldGame);
 
     // overwrite with our stored camera pos/rot
     basePos = s_wsCameraPosition;
@@ -685,8 +713,11 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
     glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
     glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
-    glm::vec3 newPos = basePos + (baseYaw * eyePos);
-    glm::fquat newRot = baseYaw * eyeRot;
+    CameraMode cameraMode = GetSettings().GetCameraMode();
+    eyePos = ApplyCameraModeEyePosPolicy(eyePos, cameraMode);
+
+    glm::vec3 newPos = basePos + ApplyCameraModeEyeOffsetPolicy(baseYaw, baseRot, eyePos, cameraMode);
+    glm::fquat newRot = ApplyCameraModeEyeRotPolicy(baseYaw, baseRot, eyeRot, cameraMode);
 
     return { newPos, newRot };
 }
@@ -788,7 +819,7 @@ void CemuHooks::hook_UseCameraDistance(PPCInterpreter_t* hCPU) {
     if (IsFirstPerson()) {
         hCPU->fpr[13].fp0 = 0.0f;
     }
-    else if (GetSettings().GetCameraMode() == CameraMode::THIRD_PERSON) {
+    else if (GetSettings().GetCameraMode() == CameraMode::THIRD_PERSON || GetSettings().GetCameraMode() == CameraMode::ORIGINAL) {
         hCPU->fpr[13].fp0 = GetSettings().thirdPlayerDistance;
     }
     else {
