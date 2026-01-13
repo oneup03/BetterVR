@@ -494,6 +494,7 @@ enum class EventMode : int32_t {
 enum class CameraMode : int32_t {
     THIRD_PERSON = 0,
     FIRST_PERSON = 1,
+    ORIGINAL = 2,
 };
 
 enum class PlayMode : int32_t {
@@ -547,7 +548,7 @@ struct ModSettings {
     bool IsLeftHanded() const { return leftHanded; }
     float GetPlayerHeightOffset() const {
         // disable height offset in third-person mode
-        if (GetCameraMode() == CameraMode::THIRD_PERSON) {
+        if (GetCameraMode() == CameraMode::THIRD_PERSON || GetCameraMode() == CameraMode::ORIGINAL) {
             return 0.0f;
         }
 
@@ -555,7 +556,7 @@ struct ModSettings {
     }
     EventMode GetCutsceneCameraMode() const {
         // if in third-person mode, always use third-person cutscene camera
-        if (GetCameraMode() == CameraMode::THIRD_PERSON) {
+        if (GetCameraMode() == CameraMode::THIRD_PERSON || GetCameraMode() == CameraMode::ORIGINAL) {
             return EventMode::ALWAYS_THIRD_PERSON;
         }
         return cutsceneCameraMode;
@@ -572,7 +573,7 @@ struct ModSettings {
 
     std::string ToString() const {
         std::string buffer = "";
-        std::format_to(std::back_inserter(buffer), " - Camera Mode: {}\n", GetCameraMode() == CameraMode::FIRST_PERSON ? "First Person" : "Third Person");
+        std::format_to(std::back_inserter(buffer), " - Camera Mode: {}\n", GetCameraMode() == CameraMode::FIRST_PERSON ? "First Person" : (GetCameraMode() == CameraMode::THIRD_PERSON ? "Third Person" : "Original"));
         std::format_to(std::back_inserter(buffer), " - Left Handed: {}\n", IsLeftHanded() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - GUI Follow Setting: {}\n", DoesUIFollowGaze() ? "Follow Looking Direction" : "Fixed");
         std::format_to(std::back_inserter(buffer), " - Player Height: {} meters\n", GetPlayerHeightOffset());

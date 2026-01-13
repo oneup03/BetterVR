@@ -261,8 +261,18 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
     glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
+    if (GetSettings().GetCameraMode() == CameraMode::ORIGINAL) {
+        eyePos.y = 0.0f;
+    }
+
     glm::vec3 newPos = basePos + (baseYaw * eyePos);
-    glm::fquat newRot = baseYaw * eyeRot;
+    glm::fquat newRot;
+    if (GetSettings().GetCameraMode() == CameraMode::ORIGINAL) {
+        newRot = baseRot * eyeRot;
+    }
+    else {
+        newRot = baseYaw * eyeRot;
+    }
 
     glm::mat4 newWorldVR = glm::translate(glm::mat4(1.0f), newPos) * glm::mat4_cast(newRot);
     glm::mat4 newViewVR = glm::inverse(newWorldVR);
@@ -731,7 +741,7 @@ void CemuHooks::hook_UseCameraDistance(PPCInterpreter_t* hCPU) {
     if (IsFirstPerson()) {
         hCPU->fpr[13].fp0 = 0.0f;
     }
-    else if (GetSettings().GetCameraMode() == CameraMode::THIRD_PERSON) {
+    else if (GetSettings().GetCameraMode() == CameraMode::THIRD_PERSON || GetSettings().GetCameraMode() == CameraMode::ORIGINAL) {
         hCPU->fpr[13].fp0 = GetSettings().thirdPlayerDistance;
     }
     else {

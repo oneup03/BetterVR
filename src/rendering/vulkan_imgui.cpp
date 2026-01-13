@@ -762,6 +762,11 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                             settings.cameraMode = CameraMode::THIRD_PERSON;
                             changed = true;
                         }
+                        ImGui::SameLine();
+                        if (ImGui::RadioButton("OG", &cameraMode, 2)) {
+                            settings.cameraMode = CameraMode::ORIGINAL;
+                            changed = true;
+                        }
                     });
 
                     ImGui::Spacing();
@@ -769,7 +774,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
                     ImGui::Text("Camera / Player Options");
                     ImGui::PopStyleColor();
-                    if (cameraMode == 0) {
+                    if (cameraMode == 0 || cameraMode == 2) {
                         float distance = settings.thirdPlayerDistance;
                         DrawSettingRow("Camera Distance", [&]() {
                             if (ImGui::SliderFloat("##CameraDistance", &distance, 0.5f, 0.65f, "%.2f")) {
@@ -812,7 +817,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     int currentCutsceneModeIdx = cutsceneMode - 1;
                     if (currentCutsceneModeIdx < 0) currentCutsceneModeIdx = 1;
 
-                    if (settings.GetCameraMode() != CameraMode::THIRD_PERSON) {
+                    if (settings.GetCameraMode() != CameraMode::THIRD_PERSON && GetSettings().GetCameraMode() != CameraMode::ORIGINAL) {
                         DrawSettingRow("Camera In Cutscenes", [&]() {
                             if (ImGui::Combo("##CutsceneCamera", &currentCutsceneModeIdx, "First Person (Always)\0Optimal Settings (Mix Of Third/First)\0Third Person (Always)\0\0")) {
                                 settings.cutsceneCameraMode = (EventMode)(currentCutsceneModeIdx + 1);
@@ -834,7 +839,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
                     ImGui::Text("UI");
                     ImGui::PopStyleColor();
-                    if (cameraMode == 1) {
+                    if (cameraMode == 1 || cameraMode == 2) {
                         bool guiFollow = settings.uiFollowsGaze;
                         DrawSettingRow("UI Follows Where You Look", [&]() {
                             if (ImGui::Checkbox("##UIFollow", &guiFollow)) {
