@@ -81,6 +81,7 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/rumble.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/rumble.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/skeleton.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/openxr_motion_bridge.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer.cpp

@@ -3,32 +3,22 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
-; the game normally draws most of the UI on top of the 3D color buffer
-; the VR mod uses the alpha channel of the 2D UI as a mask to present a transparent version of the HUD on top of the 3D framebuffer
-; this patch basically fixes a few elements not using the right blending options
-; for example, the minimap, dialogue boxes and various other things to overwrite the alpha of previously rendered 2D elements
-; which cause gaps inside the image that's shown in VR
-hook_FixUIBlending:
-stwu r1, -0x10(r1)
-mflr r0
-stw r0, 0x14(r1)
-stw r3, 0xC(r1)
-stw r4, 0x8(r1)
+; disable AutoExposure
+; 0x039D99A4 = li r3, 0
 
-bl import.coreinit.hook_FixUIBlending
+; hook Player::isRiding()
+0x02D32E98 = ba import.coreinit.hook_PlayerIsRiding
 
-bl import.gx2.GX2SetBlendControl
+; disable gyro controls
+0x02E1905C = li r3, 0 ; always return 0 to signal disabled
+0x02E19060 = blr
+0x02E19064 = li r5, 0 ; always set 0
 
-lwz r4, 0x8(r1)
-lwz r3, 0xC(r1)
-lwz r0, 0x14(r1)
-addi r1, r1, 0x10
-mtlr r0
-blr
+; disable inversed button controls
+0x02E199AC = li r3, 0 ; return 0 to signal disabled
+0x02E199B0 = blr
+0x02E199B4 = li r5, 0 ; always set 0
 
-0x03C58BF8 = bla hook_FixUIBlending
-0x03C58CC0 = bla hook_FixUIBlending
-0x03C58D68 = bla hook_FixUIBlending
 
 ; forces the player to always be guarding when the shield is drawn
 ; uses player rotation to determine the guard direction, not shield direction

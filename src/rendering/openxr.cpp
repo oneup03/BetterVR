@@ -479,6 +479,76 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
     //newState.inGame.grabState = m_input.load().inGame.grabState;
     //newState.inGame.mapAndInventoryState = m_input.load().inGame.mapAndInventoryState;
 
+    for (EyeSide side : { EyeSide::LEFT, EyeSide::RIGHT }) {
+        XrActionStateGetInfo getPoseInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getPoseInfo.action = newState.inGame.in_game ? m_inGameGripPoseAction : m_inMenuGripPoseAction;
+        getPoseInfo.subactionPath = m_handPaths[side];
+        newState.inGame.pose[side] = { XR_TYPE_ACTION_STATE_POSE };
+        checkXRResult(xrGetActionStatePose(m_session, &getPoseInfo, &newState.inGame.pose[side]), "Failed to get pose of controller!");
+
+        if (newState.inGame.pose[side].isActive) {
+            XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
+            XrSpaceVelocity spaceVelocity = { XR_TYPE_SPACE_VELOCITY };
+            spaceLocation.next = &spaceVelocity;
+            newState.inGame.poseVelocity[side].linearVelocity = { 0.0f, 0.0f, 0.0f };
+            newState.inGame.poseVelocity[side].angularVelocity = { 0.0f, 0.0f, 0.0f };
+            checkXRResult(xrLocateSpace(m_handSpaces[side], m_stageSpace, predictedFrameTime, &spaceLocation), "Failed to get location from controllers!");
+            if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
+                // raise/lower the tracked pose in stage space
+                spaceLocation.pose.position.y += playerHeightOffsetMeters;
+                newState.inGame.poseLocation[side] = spaceLocation;
+
+                if ((spaceLocation.locationFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT) != 0) {
+                    // rotate angular velocity to world space when it's using a buggy runtime
+                    auto mode = CemuHooks::GetSettings().AngularVelocityFixer_GetMode();
+                    bool isUsingQuestRuntime = m_capabilities.isOculusLinkRuntime;
+                    if ((mode == data_VRSettingsIn::AngularVelocityFixerMode::AUTO && isUsingQuestRuntime) || mode == data_VRSettingsIn::AngularVelocityFixerMode::FORCED_ON) {
+                        glm::vec3 angularVelocity = ToGLM(spaceVelocity.angularVelocity);
+                        glm::fquat fix_angle = glm::fquat(0.924, -0.383, 0, 0);
+                        angularVelocity = (ToGLM(spaceLocation.pose.orientation) * (fix_angle * angularVelocity)); // TODO: Contact other modders for similar issues with angular velocity being not on the grip rotation (quest 2) + Tune the angular velocity based on manually calculated on rotation positions
+                        spaceVelocity.angularVelocity = { angularVelocity.x, angularVelocity.y, angularVelocity.z };
+                    }
+
+                    newState.inGame.poseVelocity[side] = spaceVelocity;
+                }
+            }
+        }
+
+        XrActionStateGetInfo getAimPoseInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getAimPoseInfo.action = newState.inGame.in_game ? m_inGameAimPoseAction : m_inMenuAimPoseAction;
+        getAimPoseInfo.subactionPath = m_handPaths[side];
+        newState.inGame.aimPose[side] = { XR_TYPE_ACTION_STATE_POSE };
+        checkXRResult(xrGetActionStatePose(m_session, &getAimPoseInfo, &newState.inGame.aimPose[side]), "Failed to get aim pose of controller!");
+
+        if (newState.inGame.aimPose[side].isActive) {
+            XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
+            XrSpaceVelocity spaceVelocity = { XR_TYPE_SPACE_VELOCITY };
+            spaceLocation.next = &spaceVelocity;
+            newState.inGame.aimPoseVelocity[side].linearVelocity = { 0.0f, 0.0f, 0.0f };
+            newState.inGame.aimPoseVelocity[side].angularVelocity = { 0.0f, 0.0f, 0.0f };
+            checkXRResult(xrLocateSpace(m_handSpaces[side], m_stageSpace, predictedFrameTime, &spaceLocation), "Failed to get location from controllers!");
+            if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
+                // raise/lower the tracked pose in stage space
+                spaceLocation.pose.position.y += playerHeightOffsetMeters;
+                newState.inGame.aimPoseLocation[side] = spaceLocation;
+
+                if ((spaceLocation.locationFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT) != 0) {
+                    // rotate angular velocity to world space when it's using a buggy runtime
+                    auto mode = CemuHooks::GetSettings().AngularVelocityFixer_GetMode();
+                    bool isUsingQuestRuntime = m_capabilities.isOculusLinkRuntime;
+                    if ((mode == data_VRSettingsIn::AngularVelocityFixerMode::AUTO && isUsingQuestRuntime) || mode == data_VRSettingsIn::AngularVelocityFixerMode::FORCED_ON) {
+                        glm::vec3 angularVelocity = ToGLM(spaceVelocity.angularVelocity);
+                        glm::fquat fix_angle = glm::fquat(0.924, -0.383, 0, 0);
+                        angularVelocity = (ToGLM(spaceLocation.pose.orientation) * (fix_angle * angularVelocity)); // TODO: Contact other modders for similar issues with angular velocity being not on the grip rotation (quest 2) + Tune the angular velocity based on manually calculated on rotation positions
+                        spaceVelocity.angularVelocity = { angularVelocity.x, angularVelocity.y, angularVelocity.z };
+                    }
+
+                    newState.inGame.aimPoseVelocity[side] = spaceVelocity;
+                }
+            }
+        }
+    }
+
     if (inMenu) {
         XrActionStateGetInfo getScrollInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getScrollInfo.action = m_scrollAction;
