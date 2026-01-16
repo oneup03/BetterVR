@@ -443,13 +443,19 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
 
     XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
     xrLocateSpace(VRManager::instance().XR->m_headSpace, VRManager::instance().XR->m_stageSpace, predictedDisplayTime, &spaceLocation);
+    
+    float playerHeightOffset = CemuHooks::GetSettings().playerHeightSetting.getLE();
+
     glm::quat headOrientation = ToGLM(spaceLocation.pose.orientation);
     glm::vec3 headPosition = ToGLM(spaceLocation.pose.position);
 
     constexpr float DISTANCE = 1.5f;
     constexpr float LERP_SPEED = 0.05f;
 
+    // todo: switch to following UI whenever the player holds a bow
     if (CemuHooks::GetSettings().UIFollowsLookingDirection()) {
+        headPosition.y += playerHeightOffset;
+
         m_currentOrientation = glm::slerp(m_currentOrientation, headOrientation, LERP_SPEED);
         glm::vec3 forwardDirection = headOrientation * glm::vec3(0.0f, 0.0f, -1.0f);
 
@@ -467,6 +473,7 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
         spaceLocation.pose.position = ToXR(targetPosition);
     }
     else {
+        spaceLocation.pose.position.y += playerHeightOffset;
         spaceLocation.pose.position.z -= DISTANCE;
         spaceLocation.pose.orientation = { 0.0f, 0.0f, 0.0f, 1.0f };
     }

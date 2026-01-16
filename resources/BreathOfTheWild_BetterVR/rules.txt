@@ -199,6 +199,36 @@ category = Player Height Offset (for seated play)
 condition = $cameraMode == 1
 $cameraHeight = 0.35
 
+[Preset]
+name = +0.4m
+category = Player Height Offset (for seated play)
+condition = $cameraMode == 1
+$cameraHeight = 0.4
+
+[Preset]
+name = Super Tall (+0.5m)
+category = Player Height Offset (for seated play)
+condition = $cameraMode == 1
+$cameraHeight = 0.5
+
+[Preset]
+name = +0.6m
+category = Player Height Offset (for seated play)
+condition = $cameraMode == 1
+$cameraHeight = 0.6
+
+[Preset]
+name = +0.7m
+category = Player Height Offset (for seated play)
+condition = $cameraMode == 1
+$cameraHeight = 0.7
+
+[Preset]
+name = Extremely Tall (+0.75m)
+category = Player Height Offset (for seated play)
+condition = $cameraMode == 1
+$cameraHeight = 0.75
+
 
 # Third Person - Camera Distance
 

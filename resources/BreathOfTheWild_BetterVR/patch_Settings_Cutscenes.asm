@@ -61,7 +61,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo004_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Map Tower Demo
 .string "Demo005_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Warp demo
 .string "Demo005_1,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Warp out demo
-.string "Demo006_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Game Over Demo
+.string "Demo006_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Game Over Demo
 .string "Demo007_0,FP_ON,PAN_OFF,HND_OFF,CTRL_ON" ; name: Sleeping in bed demo
 .string "Demo007_1,FP_ON,PAN_OFF,HND_OFF,CTRL_ON" ; name: Passing time at a campfire demo
 .string "Demo007_2,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Sleeping in an inn (subflow) demo
@@ -305,7 +305,7 @@ data_TableOfCutsceneEventsSettings:
 .string "GoronsRock,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "GotoZoraVillage,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "HateeluMini_Treasure,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
-.string "HatenoMini_BlueFire,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "HatenoMini_BlueFire,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "HatenoMini_CameraBoy,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "HatenoMini_DevilSeal,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "HatenoMini_GoatThief,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -357,7 +357,7 @@ data_TableOfCutsceneEventsSettings:
 .string "MiniGame_ParasailArchery,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_ParasailRide,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_ShieldSurfing,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
-.string "MiniGame_SmashGolf,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "MiniGame_SmashGolf,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "MiniGame_TimeLimitHunting,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MouthofDragon,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; Kass in the Pagos Woods
 .string "MtMotelMini_Landscape,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"

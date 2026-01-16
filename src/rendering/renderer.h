@@ -162,7 +162,7 @@ public:
         std::unique_ptr<RND_D3D12::PresentPipeline<false>> m_presentPipeline;
         std::array<std::unique_ptr<SharedTexture>, 2> m_textures;
 
-        glm::quat m_currentOrientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        glm::quat m_currentOrientation = glm::identity<glm::fquat>();
 
         long m_currentFrameIdx = 0;
     };
