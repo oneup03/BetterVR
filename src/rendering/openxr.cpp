@@ -412,7 +412,15 @@ void OpenXR::CreateActions() {
         createInfo.action = m_inGameGripPoseAction;
         createInfo.subactionPath = m_handPaths[side];
         createInfo.poseInActionSpace = s_xrIdentityPose;
-        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_handSpaces[side]), "Failed to create action space for hand pose!");
+        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_inGameHandSpaces[side]), "Failed to create action space for hand pose!");
+    }
+
+    for (EyeSide side : { EyeSide::LEFT, EyeSide::RIGHT }) {
+        XrActionSpaceCreateInfo createInfo = { XR_TYPE_ACTION_SPACE_CREATE_INFO };
+        createInfo.action = m_inMenuGripPoseAction;
+        createInfo.subactionPath = m_handPaths[side];
+        createInfo.poseInActionSpace = s_xrIdentityPose;
+        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_inMenuHandSpaces[side]), "Failed to create action space for hand pose!");
     }
 
     // initialize rumble manager
@@ -484,8 +492,6 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
     syncInfo.activeActionSets = &activeActionSet;
     checkXRResult(xrSyncActions(m_session, &syncInfo), "Failed to sync actions!");
 
-    const float playerHeightOffsetMeters = CemuHooks::GetSettings().playerHeightSetting.getLE();
-
     InputState newState = m_input.load();
     newState.inGame.in_game = !inMenu;
     newState.inGame.inputTime = predictedFrameTime;
@@ -506,10 +512,9 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
             spaceLocation.next = &spaceVelocity;
             newState.inGame.poseVelocity[side].linearVelocity = { 0.0f, 0.0f, 0.0f };
             newState.inGame.poseVelocity[side].angularVelocity = { 0.0f, 0.0f, 0.0f };
-            checkXRResult(xrLocateSpace(m_handSpaces[side], m_stageSpace, predictedFrameTime, &spaceLocation), "Failed to get location from controllers!");
+            XrSpace handSpace = newState.inGame.in_game ? m_inGameHandSpaces[side] : m_inMenuHandSpaces[side];
+            checkXRResult(xrLocateSpace(handSpace, m_stageSpace, predictedFrameTime, &spaceLocation), "Failed to get location from controllers!");
             if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
-                // raise/lower the tracked pose in stage space
-                //spaceLocation.pose.position.y += playerHeightOffsetMeters;
                 newState.inGame.poseLocation[side] = spaceLocation;
 
                 if ((spaceLocation.locationFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT) != 0) {
