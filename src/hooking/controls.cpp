@@ -144,7 +144,9 @@ void handleLeftHandInGameInput(
     
     // Handle shield
     // if shield with lock on isn't already being used with left trigger, use gesture to guard without lock on instead.
-    if (!inputs.inGame.useLeftItem.currentState && gameState.left_equip_type == EquipType::Shield && (leftGesture.isNearChestHeight)) {
+    // Gesture enabled only when both melee weapon and shield are in hands to prevent 2 handed weapons and quick drawing shield 
+    // alone with Left Trigger to trigger it. So people can still move hands freely without the shield appearing when not wanted.
+    if (!inputs.inGame.useLeftItem.currentState && gameState.left_equip_type == EquipType::Shield && gameState.right_equip_type == EquipType::Melee && (leftGesture.isNearChestHeight)) {
         buttonHold |= VPAD_BUTTON_ZL;
         rightStickSource.currentState.y = 0.2f; // Force disable the lock on view when holding shield
         gameState.is_shield_guarding = true;
@@ -371,33 +373,24 @@ void handleLeftTriggerBindings(
         return;
     }
 
-    if (gameState.has_something_in_hand) {
-        //Guard + lock on
-        if (gameState.last_item_held != EquipType::Rune) {
-            // Reset the guard state to trigger again the lock on camera
-            if (!gameState.is_locking_on_target && gameState.previous_button_hold & VPAD_BUTTON_ZL)
-                buttonHold &= ~VPAD_BUTTON_ZL;
-            else
-            {
-                if (!gameState.is_locking_on_target)
-                    rumbleMgr->enqueueInputsRumbleCommand(leftRumble);
-                buttonHold |= VPAD_BUTTON_ZL;
-                gameState.is_locking_on_target = true;
-                gameState.is_shield_guarding = true;
-            }
-        }
-        else if (gameState.left_equip_type == EquipType::Rune) {
-            buttonHold |= VPAD_BUTTON_A;  // Use rune
+    //Guard + lock on
+    // Reset the guard state to trigger again the lock on camera
+    if (!gameState.is_locking_on_target && gameState.previous_button_hold & VPAD_BUTTON_ZL) {
+        // cancel rune use to let the shield guard happen
+        if (gameState.left_equip_type == EquipType::Rune) {
             rumbleMgr->enqueueInputsRumbleCommand(leftRumble);
+            buttonHold |= VPAD_BUTTON_B; // Cancel rune
         }
+        buttonHold &= ~VPAD_BUTTON_ZL;
     }
+
     else {
-        //reequip Rune
-        if (gameState.last_item_held == EquipType::Rune) {
-            buttonHold |= VPAD_BUTTON_L;
+        if (!gameState.is_locking_on_target)
             rumbleMgr->enqueueInputsRumbleCommand(leftRumble);
-        }
-    }
+        buttonHold |= VPAD_BUTTON_ZL;
+        gameState.is_locking_on_target = true;
+        gameState.is_shield_guarding = true;
+    }    
 }
 
 void handleRightTriggerBindings(
@@ -423,8 +416,8 @@ void handleRightTriggerBindings(
             buttonHold |= VPAD_BUTTON_ZR;  // Shoot bow
         }
         else if (gameState.left_equip_type == EquipType::Rune) {
+            buttonHold |= VPAD_BUTTON_A; // Use rune
             rumbleMgr->enqueueInputsRumbleCommand(leftRumble);
-            buttonHold |= VPAD_BUTTON_B;  // Cancel rune
         }
         else {
             rumbleMgr->enqueueInputsRumbleCommand(rightRumble);
@@ -432,7 +425,7 @@ void handleRightTriggerBindings(
         }
     }
     else {
-        // Re-equip last held weapon when empty-handed
+        // Re-equip last held weapon/item when empty-handed
         if (gameState.last_item_held == EquipType::Melee) {
             buttonHold |= VPAD_BUTTON_Y;
             rumbleMgr->enqueueInputsRumbleCommand(rightRumble);
@@ -440,6 +433,10 @@ void handleRightTriggerBindings(
         else if (gameState.last_item_held == EquipType::Bow) {
             buttonHold |= VPAD_BUTTON_ZR;
             rumbleMgr->enqueueInputsRumbleCommand(rightRumble);
+        }
+        else if (gameState.last_item_held == EquipType::Rune) {
+            buttonHold |= VPAD_BUTTON_L;
+            rumbleMgr->enqueueInputsRumbleCommand(leftRumble);
         }
     }
 }
