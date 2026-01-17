@@ -53,10 +53,10 @@ void RND_Renderer::StartFrame() {
     checkXRResult(xrBeginFrame(m_session, &beginFrameInfo), "Couldn't begin OpenXR frame!");
 
     VRManager::instance().D3D12->StartFrame();
+    VRManager::instance().XR->UpdateSpaces(m_frameState.predictedDisplayTime);
     this->UpdateViews(m_frameState.predictedDisplayTime);
 
     // todo: update this as late as possible
-    //VRManager::instance()->XR->UpdateSpaces(m_frameState.predictedDisplayTime);
 
     // todo: should we really not update actions if the camera is middle pose is not available?
     auto headsetRotation = VRManager::instance().XR->GetRenderer()->GetMiddlePose();
@@ -111,7 +111,8 @@ void RND_Renderer::EndFrame() {
                 else {
                     m_renderFrames[frameIdx].presented3D = false;
                 }
-            } else {
+            }
+            else {
                 m_renderFrames[frameIdx].presented3D = false;
             }
         }
@@ -233,11 +234,6 @@ std::optional<std::array<XrView, 2>> RND_Renderer::UpdateViews(XrTime predictedD
     checkXRResult(xrLocateViews(VRManager::instance().XR->m_session, &viewLocateInfo, &viewState, viewCount, &viewCount, newViews.data()), "Failed to get view information!");
     if ((viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT) == 0)
         return std::nullopt; // what should occur when the orientation is invalid? keep rendering using old values?
-
-    const float playerHeightOffsetMeters = CemuHooks::GetSettings().playerHeightSetting.getLE();
-    for (auto& view : newViews) {
-        view.pose.position.y += playerHeightOffsetMeters;
-    }
 
     m_currViews = newViews;
     return m_currViews;
@@ -441,21 +437,23 @@ void RND_Renderer::Layer2D::Render(long frameIdx) {
 std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTime predictedDisplayTime, long frameIdx) {
     this->m_swapchain->FinishRendering();
 
-    XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
-    xrLocateSpace(VRManager::instance().XR->m_headSpace, VRManager::instance().XR->m_stageSpace, predictedDisplayTime, &spaceLocation);
-    
-    float playerHeightOffset = CemuHooks::GetSettings().playerHeightSetting.getLE();
+    auto poses = VRManager::instance().XR->GetRenderer()->GetPoses(frameIdx);
+    if (!poses.has_value()) {
+        return {};
+    }
 
-    glm::quat headOrientation = ToGLM(spaceLocation.pose.orientation);
-    glm::vec3 headPosition = ToGLM(spaceLocation.pose.position);
+    const XrPosef& leftPose = poses->at(OpenXR::EyeSide::LEFT).pose;
+    const XrPosef& rightPose = poses->at(OpenXR::EyeSide::RIGHT).pose;
+    glm::vec3 headPosition = (ToGLM(leftPose.position) + ToGLM(rightPose.position)) * 0.5f;
+    glm::quat headOrientation = glm::slerp(ToGLM(leftPose.orientation), ToGLM(rightPose.orientation), 0.5f);
 
     constexpr float DISTANCE = 1.5f;
     constexpr float LERP_SPEED = 0.05f;
 
+    XrPosef layerPose = { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } };
+
     // todo: switch to following UI whenever the player holds a bow
     if (CemuHooks::GetSettings().UIFollowsLookingDirection()) {
-        headPosition.y += playerHeightOffset;
-
         m_currentOrientation = glm::slerp(m_currentOrientation, headOrientation, LERP_SPEED);
         glm::vec3 forwardDirection = headOrientation * glm::vec3(0.0f, 0.0f, -1.0f);
 
@@ -469,13 +467,13 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
         glm::vec3 upDirection = glm::cross(rightDirection, forwardDirection);
         glm::quat userFacingOrientation = glm::quatLookAt(forwardDirection, upDirection);
 
-        spaceLocation.pose.orientation = ToXR(userFacingOrientation);
-        spaceLocation.pose.position = ToXR(targetPosition);
+        layerPose.orientation = ToXR(userFacingOrientation);
+        layerPose.position = ToXR(targetPosition);
     }
     else {
-        spaceLocation.pose.position.y += playerHeightOffset;
-        spaceLocation.pose.position.z -= DISTANCE;
-        spaceLocation.pose.orientation = { 0.0f, 0.0f, 0.0f, 1.0f };
+        layerPose.position = ToXR(headPosition);
+        layerPose.position.z -= DISTANCE;
+        layerPose.orientation = { 0.0f, 0.0f, 0.0f, 1.0f };
     }
 
     const float aspectRatio = (float)this->m_textures[frameIdx]->d3d12GetTexture()->GetDesc().Width / (float)this->m_textures[frameIdx]->d3d12GetTexture()->GetDesc().Height;
@@ -504,7 +502,7 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
                 }
             }
         },
-        .pose = spaceLocation.pose,
+        .pose = layerPose,
         .size = { width * MENU_SIZE, height * MENU_SIZE }
     });
     // clang-format on

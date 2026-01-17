@@ -11,7 +11,7 @@
 #pragma comment(lib, "winhttp.lib")
 
 namespace UpdateChecker {
-    const std::string CURRENT_VERSION = "0.9.7";
+    const std::string CURRENT_VERSION = "0.9.8";
 
     static std::string TrimPrefixV(std::string v) {
         if (!v.empty() && (v[0] == 'v' || v[0] == 'V')) {

@@ -178,8 +178,8 @@ private:
     XrSession m_session = XR_NULL_HANDLE;
     XrSpace m_stageSpace = XR_NULL_HANDLE;
     XrSpace m_headSpace = XR_NULL_HANDLE;
-    std::array<XrSpace, 2> m_handSpaces = { XR_NULL_HANDLE, XR_NULL_HANDLE };
-    std::array<XrSpace, 2> m_aimHandSpaces = { XR_NULL_HANDLE, XR_NULL_HANDLE };
+    std::array<XrSpace, 2> m_inGameHandSpaces = { XR_NULL_HANDLE, XR_NULL_HANDLE };
+    std::array<XrSpace, 2> m_inMenuHandSpaces = { XR_NULL_HANDLE, XR_NULL_HANDLE };
     std::array<XrPath, 2> m_handPaths = { XR_NULL_PATH, XR_NULL_PATH };
 
     XrAction m_inGameGripPoseAction = XR_NULL_HANDLE;

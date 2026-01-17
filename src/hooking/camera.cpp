@@ -23,8 +23,8 @@ static std::pair<glm::quat, glm::quat> swingTwistY(const glm::quat& q) {
     return { swing, twist };
 }
 
-constexpr float hardcodedSwimOffset = 1.73f/* model height*/ - 0.3f /*head height*/;
-constexpr float hardcodedRidingOffset = 0.65;
+float hardcodedSwimOffset = 0.0f;
+float hardcodedRidingOffset = 0.65;
 
 glm::fvec3 s_wsCameraPosition = glm::fvec3();
 glm::fquat s_wsCameraRotation = glm::identity<glm::fquat>();
@@ -76,14 +76,20 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
         PlayerMoveBitFlags moveBits = actor.moveBitFlags.getLE();
         s_isSwimming = (std::to_underlying(moveBits) & std::to_underlying(PlayerMoveBitFlags::SWIMMING_1024)) != 0;
 
-        //Log::print<INFO>("{:08X}", std::to_underlying(moveBits));
-
         // read player MTX
         BEMatrix34& mtx = actor.mtx;
         glm::fvec3 playerPos = actor.mtx.getPos().getLE();
 
-        playerPos.y += s_isSwimming ? hardcodedSwimOffset : 0.0f;
-        playerPos.y -= s_isRiding ? hardcodedRidingOffset + GetSettings().playerHeightSetting.getLE() : 0.0f;
+        if (s_isRiding) {
+            playerPos.y -= hardcodedRidingOffset;
+        }
+        else if (s_isSwimming) {
+            float playerHeight = VRManager::instance().XR->GetRenderer()->GetMiddlePose().value()[3].y;
+            playerPos.y += 1.73f - playerHeight;
+        }
+        else {
+            playerPos.y += GetSettings().playerHeightSetting.getLE();
+        }
 
 
         if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
@@ -100,10 +106,6 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
         if (s_isRiding > 0) {
             s_isRiding--;
         }
-
-        //if (s_isLadderClimbing) {
-        //    s_wsCameraRotation *= glm::angleAxis(glm::radians(180.0f), glm::fvec3(0, 1, 0));
-        //}
 
         glm::mat4 playerMtx4 = glm::inverse(glm::translate(glm::identity<glm::mat4>(), playerPos) * glm::mat4(s_wsCameraRotation));
         existingGameMtx = playerMtx4;
@@ -175,12 +177,20 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
         BEMatrix34 mtx = {};
         readMemory(s_playerMtxAddress, &mtx);
         glm::fvec3 playerPos = mtx.getPos().getLE();
-
-        playerPos.y += s_isSwimming ? hardcodedSwimOffset : 0.0f;
-        playerPos.y -= s_isRiding ? hardcodedRidingOffset + GetSettings().playerHeightSetting.getLE() : 0.0f;
+        
+        if (s_isRiding) {
+            playerPos.y -= hardcodedRidingOffset;
+        }
+        else if (s_isSwimming) {
+            playerPos.y += hardcodedSwimOffset;
+        }
+        else {
+            playerPos.y += GetSettings().playerHeightSetting.getLE();
+        }
 
         basePos = playerPos;
         if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
+
             if (settings->ignoreCameraRotation) {
                 glm::fquat playerRot = mtx.getRotLE();
                 auto [swing, yaw] = swingTwistY(playerRot);
@@ -188,10 +198,6 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
                 baseYawWithoutClimbingFix = yaw * glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
             }
         }
-        
-        //if (s_isLadderClimbing) {
-        //    baseYaw *= glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
-        //}
     }
 
     s_lastCameraMtx = glm::fmat4x3(glm::translate(glm::identity<glm::fmat4>(), basePos) * glm::mat4(baseYawWithoutClimbingFix));
