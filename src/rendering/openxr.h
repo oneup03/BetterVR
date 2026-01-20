@@ -142,6 +142,11 @@ public:
         bool is_locking_on_target = false;
         bool is_shield_guarding = false;
         bool is_riding_horse = false;
+        glm::fvec3 stored_left_hand_position = glm::fvec3(0.0f, 0.0f, 0.0f);
+        bool left_hand_position_stored = false;
+        glm::fvec3 stored_right_hand_position = glm::fvec3(0.0f, 0.0f, 0.0f);
+        bool right_hand_position_stored = false;
+        int magnesisForwardFramesInterval = 0;
     } gameState ;
     std::atomic<GameState> m_gameState{};
 

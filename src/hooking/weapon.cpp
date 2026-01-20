@@ -249,7 +249,7 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
 
         
 
-        // check if weapon is held and if the grip button is held, drop it
+        // check if weapon is held and if a drop should be triggered
         auto input = VRManager::instance().XR->m_input.load();
         auto dropSide = input.inGame.drop_weapon[side];
 
@@ -501,9 +501,10 @@ void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
         RumbleParameters rumbleParams = {
             false,
             1,
+            RumbleType::Fixed,
             0.0f,
             false,
-            0.1,
+            0.025,
             0.5f * rumbleVelocity,
             0.7f * rumbleVelocity
         };

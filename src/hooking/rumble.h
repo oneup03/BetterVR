@@ -45,20 +45,21 @@ public:
         stop_haptic();
     }
 
-    void stopInputsRumble(int hand) {
+    void stopInputsRumble(int hand, RumbleType rumbleType) {
         auto& state = m_hapticStates[hand];
         //Log::print<INFO>("state.active : {}", state.active);
-        if (state.active && state.inputRumble) {
+        if (state.active && state.inputRumble && rumbleType == state.params.rumbleType) {
             state.endTime = std::chrono::steady_clock::now();
             state.active = false;
         }
     }
 
-    void enqueueInputsRumbleCommand(RumbleParameters rumbleParameters) {
+    void enqueueInputsRumbleCommand(const RumbleParameters& rumbleParameters) {
         if (rumbleParameters.prioritizeThisRumble) {
             m_inputs_rumble_queue.push(rumbleParameters);
             return;
         }
+
         if (m_inputs_rumble_queue.empty())
             m_inputs_rumble_queue.push(rumbleParameters);
     }
@@ -71,8 +72,10 @@ public:
             RumbleParameters cmd = m_inputs_rumble_queue.front();
             auto& state = m_hapticStates[cmd.hand]; 
 
-            // Priority Check: Don't overwrite if a high-priority rumble is still running
-            if (state.active && state.inputRumble && (!cmd.prioritizeThisRumble || now < state.endTime)) {
+            // Priority Check: Don't overwrite if a high-priority rumble or the same rumble is still running
+            bool sameRumble = state.active && state.params.rumbleType == cmd.rumbleType && now < state.endTime;
+            bool highPriorityRumble = state.active && state.inputRumble && (!cmd.prioritizeThisRumble || now < state.endTime);
+            if ( sameRumble || highPriorityRumble) {
                 m_inputs_rumble_queue.pop();
                 continue;
             }
@@ -100,36 +103,50 @@ public:
                 continue;
             }
 
-            // Calculate Amplitude
+            // Calculate Amplitude & Frequency
             double currentAmplitude = state.params.amplitude;
-            double currentFrequency = state.params.amplitude;
+            double currentFrequency = state.params.frequency;
+            double elapsed = std::chrono::duration<double>(now - state.startTime).count();
+            double progress = 0.0;
+            double envelope = 1.0;
+            double wave = 0.0;
+            double omega = 0.0;
 
-            if (state.params.oscillationFrequency > 0.0f) {
-                // Oscillate smooth
-                if (state.params.smoothOscillation) {
-                    double elapsed = std::chrono::duration<double>(now - state.startTime).count();
-                    double omega = 2.0 * glm::pi<double>() * 0.5;
-
+            switch (state.params.rumbleType) {
+                case RumbleType::Raising:
+                    progress = glm::clamp(elapsed / state.params.duration, 0.0, 1.0);
+                    envelope = progress * progress; //exponential optional. Need testing
+                    currentAmplitude *= envelope;
+                    currentFrequency *= envelope;
+                    break;
+                case RumbleType::Falling:
+                    progress = glm::clamp(elapsed / state.params.duration, 0.0, 1.0);
+                    envelope = (1.0 - progress) * (1.0 - progress); //exponential optional. Need testing
+                    currentAmplitude *= envelope;
+                    currentFrequency *= envelope;
+                    break;
+                case RumbleType::OscillationSmooth:
+                    omega = 2.0 * glm::pi<double>() * 0.5;
                     // This creates a wave that oscillates between 0 and state.params.amplitude
-                    double wave = (std::sin(elapsed * omega)) / 2.0;
+                    wave = (std::sin(elapsed * omega)) / 2.0;
                     currentAmplitude *= wave;
                     currentFrequency *= wave;
-                }
-                // Oscillate Falling Sawtooth Wave
-                else {
-                    double elapsed = std::chrono::duration<double>(now - state.startTime).count();
-
+                    break;
+                case RumbleType::OscillationFallingSawtoothWave:
                     // Calculate the 'progress' of the current pulse (0.0 to 1.0)
                     // fmod gives us the remainder, creating a repeating 0->1 ramp
-                    double progress = fmod(elapsed * state.params.oscillationFrequency, 1.0);
-
+                    progress = fmod(elapsed * state.params.oscillationFrequency, 1.0);
                     // Invert it so it starts at 1.0 and goes to 0.0
-                    double wave = 1.0 - progress;
-
-                    // Optional: Use 'wave * wave' for an exponential decay
-                    // This often feels 'snappier' on haptic motors
-                    currentAmplitude *= wave * wave;
-                }
+                    wave = (1.0 - progress) * (1.0 - progress); //exponential optional. Need testing
+                    currentAmplitude *= wave; 
+                    currentFrequency *= wave;
+                    break;
+                case RumbleType::OscillationRaisingSawtoothWave:
+                    progress = fmod(elapsed * state.params.oscillationFrequency, 1.0);
+                    wave = progress * progress;
+                    currentAmplitude *= wave;
+                    currentFrequency *= wave;
+                    break;
             }
 
             // Apply to OpenXR

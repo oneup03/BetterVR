@@ -419,9 +419,19 @@ enum WeaponType : uint32_t {
     ThrowableObject = 6
 };
 
+ enum class RumbleType {
+     Fixed,
+     Raising,
+     Falling,
+     OscillationSmooth,
+     OscillationFallingSawtoothWave,
+     OscillationRaisingSawtoothWave
+ };
+
  struct RumbleParameters {
      bool prioritizeThisRumble = false;
      int hand = 0;
+     RumbleType rumbleType = RumbleType::Fixed;
      float oscillationFrequency = 0.0f;
      bool smoothOscillation = false;
      double duration = 0;
