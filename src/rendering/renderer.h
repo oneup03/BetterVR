@@ -169,16 +169,15 @@ public:
 
     class ImGuiOverlay {
     public:
-        explicit ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint32_t height, VkFormat format);
+        explicit ImGuiOverlay(VkCommandBuffer cb,VkExtent2D fbRes, VkFormat framebufferFormat);
         ~ImGuiOverlay();
 
         bool ShouldBlockGameInput() { return ImGui::GetIO().WantCaptureKeyboard; }
 
-        void BeginFrame(long frameIdx, bool renderBackground);
+        void Update();
         static void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx);
         static void DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, long frameIdx);
-        void Update();
-        void Render();
+        void Render(long frameIdx, bool renderBackground);
         void DrawAndCopyToImage(VkCommandBuffer cb, VkImage destImage, long frameIdx);
 
     private:
@@ -186,6 +185,7 @@ public:
         VkRenderPass m_renderPass;
 
         VkSampler m_sampler = VK_NULL_HANDLE;
+        VkExtent2D m_outputRes = {};
 
         uint8_t m_showAppMS = 0;
         bool m_wasF3Pressed = false;
