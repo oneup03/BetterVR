@@ -175,6 +175,8 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     bool isLeftHandWeapon = strcmp(boneName, "Weapon_L") == 0;
     bool isRightHandWeapon = strcmp(boneName, "Weapon_R") == 0;
 
+    //Log::print<INFO>("boneName : {}", boneName);
+
     if (!actorName.getLE().empty() && boneName[0] != '\0' && isHeldByPlayer && (isLeftHandWeapon || isRightHandWeapon)) {
         OpenXR::EyeSide side = isLeftHandWeapon ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
 
@@ -231,17 +233,21 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
         }
 
        
-
-        if (targetActor.name.getLE() == "Item_Conductor")
-            equipType = EquipType::Rune;
+        //Log::print<INFO>("Equipped weapon {} with type of {} on side {}", targetActor.name.getLE().c_str(), (uint32_t)targetActor.type.getLE(), (uint32_t)side);
 
         if (isRightHandWeapon) {
+            if (targetActor.name.getLE() == "Item_Magnetglove")
+            equipType = EquipType::MagnetGlove;
+
             gameState.right_equip_type = equipType;
             if (gameState.left_equip_type == EquipType::Bow)
                 gameState.right_equip_type = EquipType::Arrow;
             gameState.right_equip_type_set_this_frame = true;
         }
         else {
+            if (targetActor.name.getLE() == "Item_Conductor")
+            equipType = EquipType::SheikahSlate;
+
             gameState.left_equip_type = equipType;
             gameState.left_equip_type_set_this_frame = true;
         }

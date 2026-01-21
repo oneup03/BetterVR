@@ -213,7 +213,7 @@ void handleLeftHandInGameInput(
     bool isCurrentGrabPressed = inputs.inGame.grabState[0].wasDownLastFrame;
     
     // Rune rumbles
-    if (gameState.left_equip_type == EquipType::Rune)
+    if (gameState.left_equip_type == EquipType::SheikahSlate)
         rumbleMgr->enqueueInputsRumbleCommand(RuneRumble);
 
     // Handle shield
@@ -283,9 +283,9 @@ void handleLeftHandInGameInput(
 
         if (!gameState.prevent_grab_inputs && isGrabPressed) {
             rumbleMgr->enqueueInputsRumbleCommand(leftRumbleFall);
-            if (gameState.left_equip_type != EquipType::Rune) {
+            if (gameState.left_equip_type != EquipType::SheikahSlate) {
                 buttonHold |= VPAD_BUTTON_L;
-                gameState.last_item_held = EquipType::Rune;
+                gameState.last_item_held = EquipType::SheikahSlate;
             } else {
                 buttonHold |= VPAD_BUTTON_B;  // Unequip
             }
@@ -298,7 +298,7 @@ void handleLeftHandInGameInput(
 
     if (isCurrentGrabPressed) {
         // Magnesis motion controls
-        if (gameState.left_equip_type == EquipType::Rune) {
+        if (gameState.right_equip_type == EquipType::MagnetGlove) {
             if (!gameState.left_hand_position_stored) {
                 gameState.stored_left_hand_position = ToGLM(inputs.inGame.poseLocation[0].pose.position);
                 gameState.left_hand_position_stored = true;
@@ -328,9 +328,9 @@ void handleLeftHandInGameInput(
             }
         }
         else if (gameState.left_hand_was_over_left_waist_slot) {
-            if (gameState.left_equip_type != EquipType::Rune) {
+            if (gameState.left_equip_type != EquipType::SheikahSlate) {
                 buttonHold |= VPAD_BUTTON_L;
-                gameState.last_item_held = EquipType::Rune;
+                gameState.last_item_held = EquipType::SheikahSlate;
             }
         }
     }
@@ -440,9 +440,9 @@ void handleRightHandInGameInput(
 
         if (!gameState.prevent_grab_inputs && isGrabPressedShort) {
             rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFall);
-            if (gameState.left_equip_type != EquipType::Rune) {
+            if (gameState.left_equip_type != EquipType::SheikahSlate) {
                 buttonHold |= VPAD_BUTTON_L;
-                gameState.last_item_held = EquipType::Rune;
+                gameState.last_item_held = EquipType::SheikahSlate;
             } else {
                 buttonHold |= VPAD_BUTTON_B;  // Unequip
             }
@@ -467,7 +467,7 @@ void handleRightHandInGameInput(
     
     if (isCurrentGrabPressed) {
         // Magnesis motion controls
-        if (gameState.left_equip_type == EquipType::Rune) {
+        if (gameState.right_equip_type == EquipType::MagnetGlove) {
             if (!gameState.right_hand_position_stored) {
                 gameState.stored_right_hand_position = ToGLM(inputs.inGame.poseLocation[1].pose.position);
                 gameState.right_hand_position_stored = true;
@@ -499,10 +499,10 @@ void handleRightHandInGameInput(
             }
         }
         else if (gameState.right_hand_was_over_left_waist_slot) {
-            if (gameState.left_equip_type != EquipType::Rune) {
+            if (gameState.left_equip_type != EquipType::SheikahSlate) {
                 rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFall);
                 buttonHold |= VPAD_BUTTON_L;
-                gameState.last_item_held = EquipType::Rune;
+                gameState.last_item_held = EquipType::SheikahSlate;
             }
         }
     }
@@ -538,7 +538,7 @@ void handleLeftTriggerBindings(
     // Reset the guard state to trigger again the lock on camera
     if (!gameState.is_locking_on_target && gameState.previous_button_hold & VPAD_BUTTON_ZL) {
         // cancel rune use to let the shield guard happen
-        if (gameState.left_equip_type == EquipType::Rune) {
+        if (gameState.left_equip_type == EquipType::SheikahSlate) {
             rumbleMgr->enqueueInputsRumbleCommand(raiseRumble);
             buttonHold |= VPAD_BUTTON_B; // Cancel rune
         }
@@ -586,7 +586,7 @@ void handleRightTriggerBindings(
             rumbleMgr->enqueueInputsRumbleCommand(rightRumbleInfiniteRaiseBow);
             buttonHold |= VPAD_BUTTON_ZR;  // Shoot bow
         }
-        else if (gameState.left_equip_type == EquipType::Rune) {
+        else if (gameState.left_equip_type == EquipType::SheikahSlate) {
             buttonHold |= VPAD_BUTTON_A; // Use rune
             rumbleMgr->enqueueInputsRumbleCommand(leftRumbleFixed);
         }
@@ -605,7 +605,7 @@ void handleRightTriggerBindings(
             buttonHold |= VPAD_BUTTON_ZR;
             rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFixed);
         }
-        else if (gameState.last_item_held == EquipType::Rune) {
+        else if (gameState.last_item_held == EquipType::SheikahSlate) {
             buttonHold |= VPAD_BUTTON_L;
             if ((gameState.previous_button_hold & VPAD_BUTTON_L) == 0) {
                 rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFixed);
@@ -783,7 +783,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         }
         if (inputs.inGame.useRune_runeMenuState.lastEvent == ButtonState::Event::ShortPress) {
             newXRBtnHold |= VPAD_BUTTON_L;  // Use rune
-            gameState.last_item_held = EquipType::Rune;
+            gameState.last_item_held = EquipType::SheikahSlate;
         }
         
         if (inputs.inGame.runState.lastEvent == ButtonState::Event::LongPress) {

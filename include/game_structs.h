@@ -415,8 +415,9 @@ enum WeaponType : uint32_t {
     Shield = 2,
     Bow = 3,
     Arrow = 4,
-    Rune = 5,
-    ThrowableObject = 6
+    SheikahSlate = 5,
+    MagnetGlove = 6,
+    ThrowableObject = 7
 };
 
  enum class RumbleType {
