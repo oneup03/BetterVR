@@ -456,7 +456,7 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
 
             // pole vector (elbow direction)
             // left: left-down-back, right: right-down-back
-            glm::vec3 poleDir = isLeft ? glm::vec3(-1.0f, -1.0f, -0.5f) : glm::vec3(1.0f, -1.0f, -0.5f);
+            glm::vec3 poleDir = isLeft ? glm::vec3(1.0f, -1.0f, -0.5f) : glm::vec3(-1.0f, -1.0f, -0.5f);
 
             // rotate pole vector by body rotation (Skl_Root)
             if (Bone* rootBone = s_skeleton.GetBone("Skl_Root")) {
