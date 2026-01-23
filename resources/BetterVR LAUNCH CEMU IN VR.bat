@@ -138,12 +138,22 @@ reg query "HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies
 if "%ERRORLEVEL%"=="0" (
   set "UAC_DISABLED=1"
   call :Log "WARN: UAC is disabled (ConsentPromptBehaviorAdmin=0x0)."
-  call :Popup "Warning: UAC is disabled. This forces Cemu to run as Administrator, which may break VR functionality. Attempting to launch with reduced permissions." "BetterVR Warning"
+  call :Popup "Warning: UAC is disabled. This forces Cemu to run as Administrator, which may break VR functionality." "BetterVR Warning"
 ) else (
   call :Log "INFO: UAC is enabled."
 )
 
-start "" "%CEMU_EXE%"
+:: %~1 captures the title-id of the game
+set "GAME_ID=%~1"
+
+if "%GAME_ID%"=="" (
+    call :Log "No Title ID provided. Launching Cemu menu."
+    start "" "%CEMU_EXE%"
+) else (
+    call :Log "Launching Game ID: %GAME_ID%"
+    start "" "%CEMU_EXE%" -t %GAME_ID%
+)
+
 exit /b 0
 
 

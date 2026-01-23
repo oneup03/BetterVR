@@ -73,6 +73,12 @@ using Microsoft::WRL::ComPtr;
 
 #define ENABLE_VK_ROBUSTNESS 0
 
+#include <shellapi.h>
+#include <thread>
+#include <chrono>
+#include <algorithm>
+#include <cctype>
+
 inline glm::fvec2 ToGLM(const XrVector2f& vec) {
     return glm::make_vec2(&vec.x);
 }

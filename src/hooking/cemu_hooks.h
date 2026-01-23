@@ -30,6 +30,8 @@ public:
         // Stereo Rendering/Camera Hooks
         osLib_registerHLEFunction("coreinit", "hook_BeginCameraSide", &hook_BeginCameraSide);
         osLib_registerHLEFunction("coreinit", "hook_ModifyLightPrePassProjectionMatrix", &hook_ModifyLightPrePassProjectionMatrix);
+        osLib_registerHLEFunction("coreinit", "hook_OverwriteSeadPerspectiveProjectionSet", &hook_OverwriteSeadPerspectiveProjectionSet);
+        osLib_registerHLEFunction("coreinit", "hook_ModifyProjectionUsingCamera", &hook_ModifyProjectionUsingCamera);
         osLib_registerHLEFunction("coreinit", "hook_UpdateCameraForGameplay", &hook_UpdateCameraForGameplay);
         osLib_registerHLEFunction("coreinit", "hook_GetRenderCamera", &hook_GetRenderCamera);
         osLib_registerHLEFunction("coreinit", "hook_GetRenderProjection", &hook_GetRenderProjection);
@@ -204,6 +206,8 @@ private:
     // Camera Hooks
     static void hook_BeginCameraSide(PPCInterpreter_t* hCPU);
     static void hook_ModifyLightPrePassProjectionMatrix(PPCInterpreter_t* hCPU);
+    static void hook_ModifyProjectionUsingCamera(PPCInterpreter_t* hCPU);
+    static void hook_OverwriteSeadPerspectiveProjectionSet(PPCInterpreter_t* hCPU);
     static void hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU);
     static void hook_GetRenderCamera(PPCInterpreter_t* hCPU);
     static void hook_GetRenderProjection(PPCInterpreter_t* hCPU);

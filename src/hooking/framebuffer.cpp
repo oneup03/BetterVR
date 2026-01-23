@@ -80,35 +80,30 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkCommandBufferDispatc
                 if (const auto it = imageResolutions.find(image); it != imageResolutions.end()) {
                     auto viewConfs = VRManager::instance().XR->GetViewConfigurations();
 
+                    VkExtent2D renderRes = it->second.first;
                     VkExtent2D swapchainRes = it->second.first;
                     if (VRManager::instance().XR->m_capabilities.isMetaSimulator) {
                         swapchainRes = VkExtent2D{ viewConfs[0].recommendedImageRectWidth, viewConfs[0].recommendedImageRectHeight };
                     }
 
-                    layer3D = std::make_unique<RND_Renderer::Layer3D>(it->second.first, swapchainRes);
-                    layer2D = std::make_unique<RND_Renderer::Layer2D>(it->second.first, swapchainRes);
+                    layer3D = std::make_unique<RND_Renderer::Layer3D>(renderRes, swapchainRes);
+                    layer2D = std::make_unique<RND_Renderer::Layer2D>(renderRes, swapchainRes);
                     for (auto& textures : layer3D->GetSharedTextures()) {
                         for (auto& texture : textures) {
-                            ID3D12CommandQueue& queue = *VRManager::instance().D3D12->GetCommandQueue();
-                            ID3D12Device& device = *VRManager::instance().D3D12->GetDevice();
                             texture->Init(commandBuffer);
                         }
                     }
                     for (auto& textures : layer3D->GetDepthSharedTextures()) {
                         for (auto& texture : textures) {
-                            ID3D12CommandQueue& queue = *VRManager::instance().D3D12->GetCommandQueue();
-                            ID3D12Device& device = *VRManager::instance().D3D12->GetDevice();
                             texture->Init(commandBuffer);
                         }
                     }
                     for (auto& texture : layer2D->GetSharedTextures()) {
-                        ID3D12CommandQueue& queue = *VRManager::instance().D3D12->GetCommandQueue();
-                        ID3D12Device& device = *VRManager::instance().D3D12->GetDevice();
                         texture->Init(commandBuffer);
                     }
 
-                    Log::print<INFO>("Found rendering resolution {}x{} @ {} using capture #{}", it->second.first.width, it->second.first.height, it->second.second, captureIdx);
-                    imguiOverlay = std::make_unique<RND_Renderer::ImGuiOverlay>(commandBuffer, it->second.first.width, it->second.first.height, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
+                    Log::print<INFO>("Found rendering resolution {}x{} @ {} using capture #{}", renderRes.width, renderRes.height, it->second.second, captureIdx);
+                    imguiOverlay = std::make_unique<RND_Renderer::ImGuiOverlay>(commandBuffer, renderRes, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
                     if (CemuHooks::GetSettings().ShowDebugOverlay()) {
                         VRManager::instance().Hooks->m_entityDebugger = std::make_unique<EntityDebugger>();
                     }
@@ -150,6 +145,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkCommandBufferDispatc
 
             // don't clear the image if we're in the faux 2D mode
             if (CemuHooks::UseBlackBarsDuringEvents()) {
+                returnToLayout();
                 return;
             }
 
@@ -219,9 +215,8 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkCommandBufferDispatc
 
                     if (imguiOverlay && !hudCopied) {
                         // render imgui, and then copy the framebuffer to the 2D layer
-                        imguiOverlay->BeginFrame(frameIdx, false);
                         imguiOverlay->Update();
-                        imguiOverlay->Render();
+                        imguiOverlay->Render(frameIdx, false);
                         imguiOverlay->DrawAndCopyToImage(commandBuffer, image, frameIdx);
                         VulkanUtils::DebugPipelineBarrier(commandBuffer);
                     }
@@ -243,9 +238,8 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkCommandBufferDispatc
                 // render the imgui overlay on the right side
                 if (imguiOverlay) {
                     // render imgui, and then copy the framebuffer to the 2D layer
-                    imguiOverlay->BeginFrame(frameIdx, true);
+                    imguiOverlay->Render(frameIdx, true);
                     imguiOverlay->Update();
-                    imguiOverlay->Render();
                     imguiOverlay->DrawAndCopyToImage(commandBuffer, image, frameIdx);
                     returnToLayout();
                     return;
@@ -331,8 +325,6 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkCommandBuffer
             // }
             //
             // checkAssert(layer3D.GetStatus() == Status3D::LEFT_BINDING_COLOR || layer3D.GetStatus() == Status3D::RIGHT_BINDING_COLOR, "3D layer is not in the correct state for capturing depth images!");
-
-
 
             SharedTexture* texture = layer3D->CopyDepthToLayer(side, commandBuffer, image, frameCounter);
             VRManager::instance().XR->GetRenderer()->On3DDepthCopied(side, frameCounter);

@@ -135,7 +135,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo210_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Korok Forest ~ Praise by the Great Deku Tree | cutscene you get after beating the master trials
 .string "Demo211_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Trial of the Sword - Arriving in last room | link speaks to monks at the end of the master trial https://youtu.be/fNRVxCWbM8E?t=3397
 .string "Demo299_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: "Hero's Path" Demo
-.string "Demo300_0,FP_ON,PAN_OFF,HND_ON,CTRL_OFF" ; name: Master Sword Pulling demo
+.string "Demo300_0,FP_ON,PAN_ON,HND_ON,CTRL_OFF" ; name: Master Sword Pulling demo
 .string "Demo305_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: [Rito kids] Five sisters fly away | rito kids discover the just unlocked shrine, and fly away: https://youtu.be/LeM4bfJ3Ecg?t=633
 .string "Demo309_0,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; name: Impa shows the 13th memory picture | https://youtu.be/Za2yRAMcGCc?t=1027
 .string "Demo309_1,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Zelda's voice after seeing the last memory
@@ -304,7 +304,7 @@ data_TableOfCutsceneEventsSettings:
 .string "GoronMini_WallCrackTBox,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "GoronsRock,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "GotoZoraVillage,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
-.string "HateeluMini_Treasure,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "HateeluMini_Treasure,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "HatenoMini_BlueFire,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "HatenoMini_CameraBoy,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "HatenoMini_DevilSeal,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -350,7 +350,7 @@ data_TableOfCutsceneEventsSettings:
 .string "MiniGame_Bowling,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_Crosscountry,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_GambleTreasureBox,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
-.string "MiniGame_HillTower_BirdMan,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "MiniGame_HillTower_BirdMan,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_HorsebackArchery,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_HorseRace,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "MiniGame_KitakkareBF,FP_ON,PAN_ON,HND_OFF,CTRL_ON"
@@ -1097,17 +1097,17 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo152_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo153_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo154_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
-.string "Demo154_1,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
+.string "Demo154_1,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; custom
 .string "Demo154_2,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo155_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
-.string "Demo156_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
+.string "Demo156_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; custom | Revalis gift scene
 .string "Demo158_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo159_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo160_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo161_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo162_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo163_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
-.string "Demo164_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
+.string "Demo164_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; custom
 .string "Demo165_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo165_1,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom
 .string "Demo165_2,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; custom

@@ -185,9 +185,9 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
 
     if (IsFirstPerson()) {
         // take link's direction, then rotate the headset position
-        BEMatrix34 mtx = {};
-        readMemory(s_playerMtxAddress, &mtx);
-        glm::fvec3 playerPos = mtx.getPos().getLE();
+        BEMatrix34 playerMtx = {};
+        readMemory(s_playerMtxAddress, &playerMtx);
+        glm::fvec3 playerPos = playerMtx.getPos().getLE();
         
         if (s_isRiding) {
             playerPos.y -= hardcodedRidingOffset;
@@ -203,7 +203,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
         if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
 
             if (settings->ignoreCameraRotation) {
-                glm::fquat playerRot = mtx.getRotLE();
+                glm::fquat playerRot = playerMtx.getRotLE();
                 auto [swing, yaw] = swingTwistY(playerRot);
                 baseYaw = yaw * glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
                 baseYawWithoutClimbingFix = yaw * glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
@@ -363,7 +363,7 @@ void CemuHooks::hook_ModifyLightPrePassProjectionMatrix(PPCInterpreter_t* hCPU) 
         return;
     }
 
-    if (CemuHooks::UseBlackBarsDuringEvents()) {
+    if (UseBlackBarsDuringEvents()) {
         return;
     }
 
@@ -412,6 +412,130 @@ void CemuHooks::hook_ModifyLightPrePassProjectionMatrix(PPCInterpreter_t* hCPU) 
     perspectiveProjection.deviceDirty = false;
 
     writeMemory(projectionIn, &perspectiveProjection);
+}
+
+void CemuHooks::hook_OverwriteSeadPerspectiveProjectionSet(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+}
+
+void CemuHooks::hook_ModifyProjectionUsingCamera(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    if (VRManager::instance().XR->GetRenderer() == nullptr) {
+        return;
+    }
+
+    if (UseBlackBarsDuringEvents()) {
+        return;
+    }
+
+    uint32_t projectionPtr = hCPU->gpr[4];
+    uint32_t cameraPtr = hCPU->gpr[7];
+    OpenXR::EyeSide side = hCPU->gpr[5] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
+
+    // this is always true, since we currently only hook one caller
+    if (hCPU->gpr[6] == 0x02C43454) {
+        BESeadLookAtCamera camera = {};
+        readMemory(cameraPtr, &camera);
+
+        Log::print<RENDERING>("[{}] ModifyProjectionUsingCamera at {:08X}: {}", side, cameraPtr, camera);
+
+        OpenXR::EyeSide side = hCPU->gpr[5] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
+
+        // in-game camera
+        glm::mat4x3 viewMatrix = camera.mtx.getLEMatrix();
+        glm::mat4 worldGame = glm::inverse(glm::mat4(viewMatrix));
+        glm::vec3 basePos = glm::vec3(worldGame[3]);
+        glm::quat baseRot = glm::quat_cast(worldGame);
+
+        // ignore the current rotation since it is already changed by the gameplay camera hooking
+        baseRot = s_wsCameraRotation;
+        auto [swing, baseYaw] = swingTwistY(baseRot);
+
+        if (IsFirstPerson()) {
+            // take link's direction, then rotate the headset position
+            BEMatrix34 playerMtx = {};
+            readMemory(s_playerMtxAddress, &playerMtx);
+
+            if (auto settings = GetFirstPersonSettingsForActiveEvent()) {
+
+                if (settings->ignoreCameraRotation) {
+                    glm::fquat playerRot = playerMtx.getRotLE();
+                    auto [swing, yaw] = swingTwistY(playerRot);
+                    baseYaw = yaw * glm::angleAxis(glm::radians(180.0f), glm::fvec3(0.0f, 1.0f, 0.0f));
+                }
+            }
+        }
+
+        // vr camera
+        std::optional<XrPosef> currPoseOpt = VRManager::instance().XR->GetRenderer()->GetPose(side);
+        if (!currPoseOpt.has_value())
+            return;
+        glm::fvec3 eyePos = ToGLM(currPoseOpt.value().position);
+        glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
+
+        glm::vec3 newPos = basePos + (baseYaw * eyePos);
+        glm::fquat newRot = baseYaw * eyeRot;
+
+        glm::mat4 newWorldVR = glm::translate(glm::mat4(1.0f), newPos) * glm::mat4_cast(newRot);
+        glm::mat4 newViewVR = glm::inverse(newWorldVR);
+
+        camera.mtx.setLEMatrix(newViewVR);
+
+        camera.pos = newPos;
+
+        // Set look-at point by offsetting position in view direction
+        glm::vec3 viewDir = -glm::vec3(newViewVR[2]); // Forward direction is -Z in view space
+        camera.at = newPos + viewDir;
+
+        // Transform world up vector by new rotation
+        glm::vec3 upDir = glm::vec3(newViewVR[1]); // Up direction is +Y in view space
+        camera.up = upDir;
+
+        writeMemory(cameraPtr, &camera);
+    }
+
+    BESeadPerspectiveProjection perspectiveProjection = {};
+    readMemory(projectionPtr, &perspectiveProjection);
+
+    if (!VRManager::instance().XR->GetRenderer()->GetFOV(side).has_value()) {
+        return;
+    }
+
+    Log::print<RENDERING>("[{}] ModifyProjectionUsingCamera: {}", side, perspectiveProjection);
+
+    XrFovf currFOV = VRManager::instance().XR->GetRenderer()->GetFOV(side).value();
+    auto newProjection = calculateFOVAndOffset(currFOV);
+
+    perspectiveProjection.aspect = newProjection.aspectRatio;
+    perspectiveProjection.fovYRadiansOrAngle = newProjection.fovY;
+    float halfAngle = newProjection.fovY.getLE() * 0.5f;
+    perspectiveProjection.fovySin = sinf(halfAngle);
+    perspectiveProjection.fovyCos = cosf(halfAngle);
+    perspectiveProjection.fovyTan = tanf(halfAngle);
+    perspectiveProjection.offset.x = newProjection.offsetX;
+    perspectiveProjection.offset.y = newProjection.offsetY;
+
+    glm::fmat4 newMatrix = calculateProjectionMatrix(perspectiveProjection.zNear.getLE(), perspectiveProjection.zFar.getLE(), currFOV);
+    perspectiveProjection.matrix = newMatrix;
+
+    // calculate device matrix
+    glm::fmat4 newDeviceMatrix = newMatrix;
+
+    float zScale = perspectiveProjection.deviceZScale.getLE();
+    float zOffset = perspectiveProjection.deviceZOffset.getLE();
+
+    newDeviceMatrix[2][0] *= zScale;
+    newDeviceMatrix[2][1] *= zScale;
+    newDeviceMatrix[2][2] = (newDeviceMatrix[2][2] + newDeviceMatrix[3][2] * zOffset) * zScale;
+    newDeviceMatrix[2][3] = newDeviceMatrix[2][3] * zScale + newDeviceMatrix[3][3] * zOffset;
+
+    perspectiveProjection.deviceMatrix = newDeviceMatrix;
+
+    perspectiveProjection.dirty = false;
+    perspectiveProjection.deviceDirty = false;
+
+    writeMemory(projectionPtr, &perspectiveProjection);
 }
 
 void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
@@ -580,13 +704,16 @@ void CemuHooks::hook_GetEventName(PPCInterpreter_t* hCPU) {
 
     uint32_t isEventActive = hCPU->gpr[3];
     uint32_t eventNamePtr = hCPU->gpr[4];
+    uint32_t entryPointNamePtr = hCPU->gpr[5];
 
     if (isEventActive) {
         std::string eventName = std::string((char*)s_memoryBaseAddress + eventNamePtr);
+        std::string entryPointName = std::string((char*)s_memoryBaseAddress + entryPointNamePtr);
+
         if (s_currentEvent == eventName) {
             return;
         }
-        Log::print<INFO>("Event '{}' is now active.", eventName);
+        Log::print<INFO>("Event '{}' is now active (using entry point '{}').", eventName, entryPointName);
         s_currentEvent = eventName;
 
         auto it = s_eventSettings.find(eventName);

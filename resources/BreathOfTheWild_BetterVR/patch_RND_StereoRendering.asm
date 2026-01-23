@@ -390,12 +390,84 @@ blr
 0x03414D74 = runActorUpdateStuff:
 
 
+0x10463E64 = GameScene_sBinderStatus:
+0x02C4FAD4 = StageBinder_getStage:
+0x101C1474 = stru_101C1474:
+
+custom_PostCalc:
+mflr r0
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+stw r6, 0x10(r1)
+stw r7, 0x0C(r1)
+
+lwz r3, 0x1C(r1)
+lwz r3, 0x200(r3)
+cmpwi r3, 0
+beq skip_custom_PostCalc
+
+lis r6, GameScene_sBinderStatus@ha
+lwz r6, GameScene_sBinderStatus@l(r6)
+cmpwi r6, 2
+beq skip_custom_PostCalc
+
+; get stage
+lis r6, StageBinder_getStage@ha
+addi r6, r6, StageBinder_getStage@l
+mtctr r6
+;lwz r3, 0x1C(r1)
+bctrl ; bl StageBinder_getStage
+
+; check if stage is valid
+cmpwi r3, 0
+beq skip_custom_PostCalc
+
+lis r5, stru_101C1474@ha
+addi r5, r5, stru_101C1474@l
+stw r5, 0x08(r1) ; store callback vtable on stack
+addi r4, r1, 0x08
+
+0x02C44944 = MainFieldDungeonStage__postCalc:
+lwz r6, 0x00(r3) ; stage->vtable
+lwz r6, 0x4C(r6) ; get Stage::postCalc function pointer
+lis r7, MainFieldDungeonStage__postCalc@ha
+addi r7, r7, MainFieldDungeonStage__postCalc@l
+cmpw r6, r7
+bne skip_custom_PostCalc
+
+; run ONE function of the stage's postCalc
+0x02C42FF0 = BackgroundCamera_postCalc:
+lis r7, BackgroundCamera_postCalc@ha
+addi r7, r7, BackgroundCamera_postCalc@l
+mtctr r7
+bctrl ; bl BackgroundCamera::postCalc
+
+; lwz r6, 0x00(r3) ; stage->vtable
+; lwz r6, 0x4C(r6) ; get Stage::postCalc function pointer
+; mtctr r6
+; bctrl ; bl Stage::postCalc
+
+skip_custom_PostCalc:
+lwz r7, 0x0C(r1)
+lwz r6, 0x10(r1)
+lwz r5, 0x14(r1)
+lwz r4, 0x18(r1)
+lwz r3, 0x1C(r1)
+lwz r0, 0x24(r1)
+addi r1, r1, 0x20
+mtlr r0
+blr
+
+
 custom_GameScene_calcAndRunStateMachine:
 mflr r0
-stwu r1, -0x10(r1)
-stw r0, 0x14(r1)
-stw r3, 0x0C(r1)
-stw r4, 0x08(r1)
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x0C(r1) ; stores System*
+stw r4, 0x08(r1) ; stores Framework*
 stw r5, 0x04(r1)
 
 lis r3, currentEyeSide@ha
@@ -403,6 +475,7 @@ lwz r3, currentEyeSide@l(r3)
 cmpwi r3, 1
 beq dontRunStateMachine
 
+; for eye side 0, just run the regular code
 lis r3, uking__frm__System__preCalc@ha
 addi r3, r3, uking__frm__System__preCalc@l
 mtctr r3
@@ -523,15 +596,15 @@ lbz r3, byte_10463E7C@l(r3)
 ; run gameScene::calcGraphicsStuff(*a2)
 0x03416590 = gameScene__calcGraphicsStuff:
 
-lis r3, gameScene__calcGraphicsStuff@ha
-addi r3, r3, gameScene__calcGraphicsStuff@l
-mtctr r3
-lwz r3, 0x0C(r1)
-lwz r4, 0x08(r1)
-lwz r5, 0x04(r1)
-lwz r3, 0x0(r4)
-;bctrl
-
+;lis r3, gameScene__calcGraphicsStuff@ha
+;addi r3, r3, gameScene__calcGraphicsStuff@l
+;mtctr r3
+;lwz r3, 0x0C(r1)
+;lwz r4, 0x08(r1)
+;lwz r5, 0x04(r1)
+;lwz r3, 0x0(r4)
+;;bctrl
+;
 ;lis r3, uking__frm__System__postCalc@ha
 ;addi r3, r3, uking__frm__System__postCalc@l
 ;mtctr r3
@@ -540,13 +613,27 @@ lwz r3, 0x0(r4)
 ;lwz r5, 0x04(r1)
 ;bctrl
 
+; load system and framework pointers
+lwz r3, 0x0C(r1)
+lwz r4, 0x08(r1)
+lwz r5, 0x04(r1)
+; store callback pointer
+lwz r5, 0x0(r4)
+addi r4, r1, 0x18
+stw r5, 0x18(r1)
+
+lwz r3, 0x08(r3) ; uking::frm::Scene->gameScene
+
+bl custom_PostCalc
+
+
 continuecalcAndRunStateMachine__run:
-lwz r0, 0x14(r1)
+lwz r0, 0x24(r1)
 mtlr r0
 lwz r3, 0x0C(r1)
 lwz r4, 0x08(r1)
 lwz r5, 0x04(r1)
-addi r1, r1, 0x10
+addi r1, r1, 0x20
 blr
 
 ; hook the precall to run our custom code which runs the pre, run and post calc
@@ -591,10 +678,11 @@ addi r3, r3, sead__Delegate_gsys__SystemTask___invoke@l
 cmpw r10, r3
 beq doCallRec
 
+
 lis r3, sead__Delegate__RootTaskAndControllerMgr__invoke@ha
 addi r3, r3, sead__Delegate__RootTaskAndControllerMgr__invoke@l
 cmpw r10, r3
-;beq doCallRec
+beq doCallRec
 
 ;b doCallRec
 b dontCallRec
@@ -931,3 +1019,91 @@ addi r1, r1, 0x20
 blr
 
 0x030C1008 = ba custom_sead__Projection__getProjectionMatrix
+
+; =================================================================================
+
+0x030C1958 = ba import.coreinit.hook_OverwriteSeadPerspectiveProjectionSet
+
+0x03191BA0 = Camera__getPerspectiveProjection:
+0x030C18F0 = sead__PerspectiveProjection__set:
+
+custom_ModifyProjectionUsingCamera:
+mflr r0
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+stw r6, 0x08(r1)
+stw r7, 0x04(r1)
+stw r30, 0x10(r1)
+stw r31, 0x0C(r1)
+
+mr. r31, r4
+mr r30, r3
+beq exit_custom_ModifyProjectionUsingCamera
+
+lis r3, Camera__getPerspectiveProjection@ha
+addi r3, r3, Camera__getPerspectiveProjection@l
+mtctr r3
+lis r3, Camera__sInstance@ha
+lwz r3, Camera__sInstance@l(r3)
+bctrl ; bl Camera__getPerspectiveProjection
+
+lwz r12, 0x90(r3)
+lwz r0, 0x3C(r12)
+mtctr r0
+bctrl ; sead__PerspectiveProjection__getAspect
+
+lfs f3, 0x68(r30)
+fmr f4, f1
+lfs f2, 0x64(r30)
+lfs f1, 0x60(r30)
+lis r3, sead__PerspectiveProjection__set@ha
+addi r3, r3, sead__PerspectiveProjection__set@l
+mtctr r3
+mr r3, r31
+bctrl ; bl sead__PerspectiveProjection__set
+lfs f0, 0x6C(r30)
+li r11, 1
+stfs f0, 0xB0(r31)
+lfs f0, 0x70(r30)
+stb r11, 0(r31)
+stfs f0, 0xB4(r31)
+
+;lwz r3, 0x1C(r1)
+;lwz r3, 0x30(r3) ; load vtable address
+;lwz r3, 0x24(r3) ; load updateMatrix address
+;mtctr r3
+;lwz r3, 0x1C(r1)
+;mr r4, r3
+;bctrl ; bl sead::Projection::updateMatrix
+
+lwz r3, 0x1C(r1)
+lwz r4, 0x18(r1)
+lis r5, currentEyeSide@ha
+lwz r5, currentEyeSide@l(r5)
+lwz r6, 0x24(r1)
+
+lwz r7, 0x10(r1)
+lwz r7, 0x128(r7)
+
+bla import.coreinit.hook_ModifyProjectionUsingCamera
+
+exit_custom_ModifyProjectionUsingCamera:
+lwz r3, 0x1C(r1)
+lwz r4, 0x18(r1)
+lwz r5, 0x14(r1)
+lwz r6, 0x08(r1)
+lwz r7, 0x04(r1)
+lwz r30, 0x10(r1)
+lwz r31, 0x0C(r1)
+lwz r0, 0x24(r1)
+addi r1, r1, 0x20
+mtlr r0
+blr
+
+0x02C43450 = bla custom_ModifyProjectionUsingCamera
+
+;0x0318FE7C = ba custom_ModifyProjectionUsingCamera
+;0x0318FEFC = ba import.coreinit.hook_ModifyProjectionUsingCamera

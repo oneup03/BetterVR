@@ -889,3 +889,75 @@ mtlr r0
 blr
 
 0x037FFE34 = bla OnlyRunPlayerUpdateJobOnce
+
+
+; ======================================================
+
+; fix events running twice as fast
+
+OnlyRunEventUpdateJobOnce:
+mflr r0
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+
+lis r3, currentEyeSide@ha
+lwz r3, currentEyeSide@l(r3)
+cmpwi r3, 0
+beq exit_OnlyRunEventUpdateJobOnce
+
+lis r3, FixedSizeJQ_enque_job@ha
+addi r3, r3, FixedSizeJQ_enque_job@l
+mtctr r3
+lwz r3, 0x1C(r1)
+bctrl
+
+exit_OnlyRunEventUpdateJobOnce:
+lwz r5, 0x14(r1)
+lwz r4, 0x18(r1)
+lwz r3, 0x1C(r1)
+lwz r0, 0x24(r1)
+addi r1, r1, 0x20
+mtlr r0
+blr
+
+
+0x031FBC78 = bla OnlyRunEventUpdateJobOnce
+
+; ======================================================
+
+; fix weather and WorldMgr::calc being called twice per frame
+
+0x030DF7E8 = FixedSizeJQ_enque_job:
+
+OnlyRunWorldUpdateJobOnce:
+mflr r0
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+
+lis r3, currentEyeSide@ha
+lwz r3, currentEyeSide@l(r3)
+cmpwi r3, 0
+beq exit_OnlyRunWorldUpdateJobOnce
+
+lis r3, FixedSizeJQ_enque_job@ha
+addi r3, r3, FixedSizeJQ_enque_job@l
+mtctr r3
+lwz r3, 0x1C(r1)
+bctrl
+
+exit_OnlyRunWorldUpdateJobOnce:
+lwz r5, 0x14(r1)
+lwz r4, 0x18(r1)
+lwz r3, 0x1C(r1)
+lwz r0, 0x24(r1)
+addi r1, r1, 0x20
+mtlr r0
+blr
+
+;0x031FBC84 = bla OnlyRunWorldUpdateJobOnce
