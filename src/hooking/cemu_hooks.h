@@ -77,6 +77,7 @@ public:
     };
 
     static data_VRSettingsIn GetSettings();
+    static void SetSettings(const data_VRSettingsIn& settings);
 
     static HWND m_cemuTopWindow;
     static HWND m_cemuRenderWindow;
@@ -198,6 +199,7 @@ private:
 
     static bool IsScreenOpen(ScreenId screen);
     static void InitWindowHandles();
+
     static std::pair<glm::vec3, glm::fquat> CalculateVRWorldPose(const BESeadLookAtCamera& camera, uint8_t side);
 
     static void hook_UpdateSettings(PPCInterpreter_t* hCPU);

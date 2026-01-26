@@ -64,18 +64,13 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
     // Log::print("Updated settings!");
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    uint32_t ppc_settingsOffset = hCPU->gpr[5];
     uint32_t ppc_tableOfCutsceneEventSettings = hCPU->gpr[6];
-    data_VRSettingsIn settings = {};
-
+    
     if (auto& debugger = VRManager::instance().Hooks->m_entityDebugger) {
         debugger->UpdateEntityMemory();
     }
 
-    readMemory(ppc_settingsOffset, &settings);
-
     std::lock_guard lock(g_settingsMutex);
-    g_settings = settings;
     ++s_framesSinceLastCameraUpdate;
 
 #ifdef _DEBUG
@@ -114,6 +109,11 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
 data_VRSettingsIn CemuHooks::GetSettings() {
     std::lock_guard lock(g_settingsMutex);
     return g_settings;
+}
+
+void CemuHooks::SetSettings(const data_VRSettingsIn& settings) {
+    std::lock_guard lock(g_settingsMutex);
+    g_settings = settings;
 }
 
 

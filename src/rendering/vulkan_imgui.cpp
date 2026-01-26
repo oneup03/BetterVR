@@ -1,10 +1,18 @@
 #include "instance.h"
 #include "vulkan.h"
+#include "utils/controller_image.h"
 #include "hooking/entity_debugger.h"
+#include "hooking/cemu_hooks.h"
 #include "utils/vulkan_utils.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 
 RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, VkExtent2D fbRes, VkFormat fbFormat): m_outputRes(fbRes) {
     ImGui::CreateContext();
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_HasGamepad;
     ImPlot3D::CreateContext();
     ImPlot::CreateContext();
 
@@ -163,6 +171,41 @@ RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, VkExtent2D fbRes, V
         frame.hudWithoutAlphaFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
         frame.hudWithoutAlphaFramebufferDS = ImGui_ImplVulkan_AddTexture(m_sampler, frame.hudWithoutAlphaFramebuffer->GetImageView(), VK_IMAGE_LAYOUT_GENERAL);
     }
+
+    // create VulkanTexture
+    auto createHelpImage = [&](stbi_uc const* imageData, int imageSize) {
+        // load png image using stb_image
+        int width, height, channels;
+        unsigned char* img = stbi_load_from_memory(imageData, imageSize, &width, &height, &channels, STBI_rgb_alpha);
+
+        // create VulkanTexture from image data
+        HelpImage image;
+        image.m_image = new VulkanTexture{ (uint32_t)width, (uint32_t)height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT };
+        image.m_image->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
+        image.m_image->vkUpload(cb, img, width * height * 4);
+        image.m_image->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
+
+        stbi_image_free(img);
+
+        image.m_imageDS = ImGui_ImplVulkan_AddTexture(m_sampler, image.m_image->GetImageView(), VK_IMAGE_LAYOUT_GENERAL);
+        return image;
+    };
+
+    std::vector<HelpImage> page1;
+    page1.emplace_back(createHelpImage(BOTWcontrolScheme1_inputs, sizeof(BOTWcontrolScheme1_inputs)));
+    page1.emplace_back(createHelpImage(BOTWcontrolScheme_BodySlots, sizeof(BOTWcontrolScheme_BodySlots)));
+    m_helpImagePages.push_back(page1);
+
+    std::vector<HelpImage> page2;
+    page2.push_back(createHelpImage(BOTWcontrolScheme_Attack, sizeof(BOTWcontrolScheme_Attack)));
+    page2.push_back(createHelpImage(BOTWcontrolScheme_Shield, sizeof(BOTWcontrolScheme_Shield)));
+    m_helpImagePages.push_back(page2);
+
+    std::vector<HelpImage> page3;
+    page3.push_back(createHelpImage(BOTWcontrolScheme_Magnesis, sizeof(BOTWcontrolScheme_Magnesis)));
+    page3.push_back(createHelpImage(BOTWcontrolScheme_Whistle, sizeof(BOTWcontrolScheme_Whistle)));
+    m_helpImagePages.push_back(page3);
+
     
     VulkanUtils::DebugPipelineBarrier(cb);
 
@@ -190,6 +233,14 @@ RND_Renderer::ImGuiOverlay::~ImGuiOverlay() {
         if (frame.imguiFramebuffer != nullptr)
             frame.imguiFramebuffer.reset();
     }
+
+    for (auto& imagePage : m_helpImagePages) {
+        for (auto& helpImage : imagePage) {
+            ImGui_ImplVulkan_RemoveTexture(helpImage.m_imageDS);
+            delete helpImage.m_image;
+        }
+    }
+
 
     if (m_sampler != VK_NULL_HANDLE)
         VRManager::instance().VK->GetDeviceDispatch()->DestroySampler(VRManager::instance().VK->GetDevice(), m_sampler, nullptr);
@@ -243,7 +294,7 @@ void RND_Renderer::ImGuiOverlay::Update() {
     p.y = p.y - blackBarHeight;
 
     // update mouse controls and keyboard input
-    bool isWindowFocused = CemuHooks::m_cemuTopWindow == GetForegroundWindow();
+    bool isWindowFocused = CemuHooks::m_cemuTopWindow == GetForegroundWindow() || true;
 
     ImGui::GetIO().AddFocusEvent(isWindowFocused);
     if (isWindowFocused) {
@@ -349,6 +400,257 @@ void RND_Renderer::ImGuiOverlay::Render(long frameIdx, bool renderBackground) {
     if ((renderBackground && m_showAppMS == 1) || (m_showAppMS == 2)) {
         EntityDebugger::DrawFPSOverlay(renderer);
     }
+
+    DrawHelpMenu();
+}
+
+void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs, OpenXR::HelpMenuState& menuState) {
+    if (!menuState.isOpen) return;
+
+    auto& io = ImGui::GetIO();
+    bool inGame = inputs.inGame.in_game;
+
+    // Use in-game move stick or menu navigate stick
+    auto& stick = inGame ? inputs.inGame.move : inputs.inMenu.navigate;
+
+    // Map Stick to DPad with hysteresis and repeating pulse
+    constexpr float THRESHOLD_PRESS = 0.5f;
+    constexpr float THRESHOLD_RELEASE = 0.3f; 
+
+    static bool dpadState[4] = { false }; // Up, Down, Left, Right
+    static double lastRefireTime[6] = { 0.0 }; // 0-3 Dpad, 4 B, 5 A
+    constexpr double REFIRE_DELAY = 0.4f; // Seconds between repeats
+    double currentTime = ImGui::GetTime();
+
+    auto updateDpadState = [&](int idx, float val, bool positive) {
+        bool isPressed = dpadState[idx];
+        if (positive) {
+            if (!isPressed && val >= THRESHOLD_PRESS) isPressed = true;
+            else if (isPressed && val <= THRESHOLD_RELEASE) isPressed = false;
+        } else {
+            if (!isPressed && val <= -THRESHOLD_PRESS) isPressed = true;
+            else if (isPressed && val >= -THRESHOLD_RELEASE) isPressed = false;
+        }
+        dpadState[idx] = isPressed;
+        return isPressed;
+    };
+
+    auto applyInput = [&](ImGuiKey key, bool isPressed, int idx) {
+        if (isPressed) {
+            if (currentTime - lastRefireTime[idx] >= REFIRE_DELAY || lastRefireTime[idx] == 0.0) {
+                 io.AddKeyEvent(key, true);
+                 lastRefireTime[idx] = currentTime;
+            } else {
+                 io.AddKeyEvent(key, false);
+            }
+        } else {
+            io.AddKeyEvent(key, false);
+            lastRefireTime[idx] = 0.0;
+        }
+    };
+
+    applyInput(ImGuiKey_GamepadDpadUp, updateDpadState(0, stick.currentState.y, true), 0);
+    applyInput(ImGuiKey_GamepadDpadDown, updateDpadState(1, stick.currentState.y, false), 1);
+    applyInput(ImGuiKey_GamepadDpadLeft, updateDpadState(2, stick.currentState.x, false), 2);
+    applyInput(ImGuiKey_GamepadDpadRight, updateDpadState(3, stick.currentState.x, true), 3);
+
+    // Map Buttons
+    bool backDown = false;
+    bool confirmDown = false;
+
+    if (inGame) {
+        backDown = inputs.inGame.run_interact_cancel.currentState;
+        // Map jump (X) to confirm/enter for now since A is not clearly mapped in the InGame struct active here
+        confirmDown = inputs.inGame.jump.currentState;
+    }
+    else {
+        backDown = inputs.inMenu.back.currentState;
+        confirmDown = inputs.inMenu.select.currentState;
+    }
+
+    applyInput(ImGuiKey_GamepadFaceRight, backDown, 4); // B -> Cancel
+    applyInput(ImGuiKey_GamepadFaceDown, confirmDown, 5); // A -> Confirm
+
+    // Handle Exit (B press)
+    bool shouldClose = false;
+    if (inGame) {
+        if (inputs.inGame.run_interact_cancel.changedSinceLastSync && inputs.inGame.run_interact_cancel.currentState) {
+            shouldClose = true;
+            inputs.inGame.run_interact_cancel.currentState = XR_FALSE; // consume
+        }
+    }
+    else {
+        if (inputs.inMenu.back.changedSinceLastSync && inputs.inMenu.back.currentState) {
+            shouldClose = true;
+        }
+    }
+
+    if (shouldClose) {
+        menuState.isOpen = false;
+        VRManager::instance().XR->m_helpMenuState.store(menuState);
+    }
+}
+
+void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
+    auto menuState = VRManager::instance().XR->m_helpMenuState.load();
+
+    if (ImGui::GetTime() < 10.0f && !menuState.isOpen) {
+        ImGui::SetNextWindowBgAlpha(0.8f);
+        ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Always);
+        if (ImGui::Begin("HelpNotify", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs)) {
+            ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 1.0), "Long-Press The Inventory Button (Right Thumbstick By Default) To Open BetterVR Help & Settings");
+        }
+        ImGui::End();
+    }
+
+    if (!menuState.isOpen) return;
+
+    ImVec2 fullWindowWidth = ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
+    ImVec2 windowWidth = fullWindowWidth * ImVec2(0.8f, 1.0f);
+
+    ImGui::SetNextWindowPos(fullWindowWidth * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(windowWidth, ImGuiCond_Always);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::SetNextWindowFocus();
+
+    if (ImGui::Begin("BetterVR Settings & Help | Press B Or Long-Press Inventory Button To Exit", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+
+        if (ImGui::BeginTabBar("HelpMenuTabs")) {
+            auto tabFlags = [](int idx, int current) {
+                return (idx == current) ? ImGuiTabItemFlags_SetSelected : 0;
+            };
+
+            if (ImGui::BeginTabItem("Control Guide", nullptr, 0)) {
+                menuState.currPageIdx = 0;
+                VRManager::instance().XR->m_helpMenuState.store(menuState);
+
+                ImGui::PushItemWidth(windowWidth.x * 0.5f);
+
+                for (const auto& imagePage : m_helpImagePages) {
+                    for (const auto& image : imagePage) {
+                        ImGui::PushID(&image);
+                        float imageHeightAtFullWidth = (windowWidth.x) * ((float)image.m_image->GetHeight() / (float)image.m_image->GetWidth());
+                        ImVec2 imageSize = ImVec2(windowWidth.x, imageHeightAtFullWidth);
+                        ImVec2 p = ImGui::GetCursorPos();
+                        ImGui::Selectable("##imgButton", false, 0, imageSize);
+                        ImGui::SetCursorPos(p);
+                        ImGui::Image((ImTextureID)image.m_imageDS, imageSize);
+                        ImGui::PopID();
+                    }
+                }
+
+                ImGui::PopItemWidth();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Settings", nullptr, 0)) {
+                menuState.currPageIdx = 1;
+                VRManager::instance().XR->m_helpMenuState.store(menuState);
+
+                ImGui::Dummy(ImVec2(0.0f, 10.0f));
+                ImGui::Indent(10.0f);
+                ImGui::PushItemWidth(windowWidth.x * 0.5f);
+
+                auto settings = CemuHooks::GetSettings();
+                bool changed = false;
+
+                ImGui::Separator();
+                ImGui::Text("Camera Mode");
+                int cameraMode = settings.IsFirstPersonMode() ? 1 : 0;
+                if (ImGui::RadioButton("First Person", &cameraMode, 1)) { settings.cameraModeSetting = 1; changed = true; }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Third Person", &cameraMode, 0)) { settings.cameraModeSetting = 0; changed = true; }
+
+                if (cameraMode == 0) {
+                    float distance = settings.thirdPlayerDistance.getLE();
+                    if (ImGui::SliderFloat("Camera Distance", &distance, 0.4f, 1.1f, "%.2f m")) {
+                        settings.thirdPlayerDistance = distance;
+                        changed = true;
+                    }
+                }
+                else {
+                    
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Comfort & Accessibility");
+                if (cameraMode == 1) {
+                    bool leftHanded = settings.IsLeftHanded();
+                    if (ImGui::Checkbox("Left Handed Mode", &leftHanded)) {
+                        settings.leftHandedSetting = leftHanded ? 1 : 0;
+                        changed = true;
+                    }
+
+                    bool guiFollow = settings.UIFollowsLookingDirection();
+                    if (ImGui::Checkbox("UI Follows View", &guiFollow)) {
+                        settings.guiFollowSetting = guiFollow ? 1 : 0;
+                        changed = true;
+                    }
+
+                    ImGui::Separator();
+                    ImGui::Text("Player Height Offset");
+                    float height = settings.playerHeightSetting.getLE();
+                    if (ImGui::SliderFloat("Height (meters)", &height, -0.5f, 1.0f, "%.2f")) {
+                        settings.playerHeightSetting = height;
+                        changed = true;
+                    }
+                    if (ImGui::Button("Reset Height")) {
+                        settings.playerHeightSetting = 0.0f;
+                        changed = true;
+                    }
+                }
+                else {
+                    settings.playerHeightSetting = 0.0f;
+                    settings.guiFollowSetting = 1;
+                    settings.leftHandedSetting = 0;
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Cutscenes");
+                int cutsceneMode = settings.cutsceneCameraMode.getLE();
+                int currentCutsceneModeIdx = cutsceneMode - 1;
+                if (currentCutsceneModeIdx < 0) currentCutsceneModeIdx = 1; 
+                if (ImGui::Combo("Cutscene Camera", &currentCutsceneModeIdx, "First Person (Always)\0Recommended (Mix)\0Third Person (Always)\0\0")) {
+                     settings.cutsceneCameraMode = currentCutsceneModeIdx + 1;
+                     changed = true;
+                }
+
+                bool blackBars = settings.UseBlackBarsForCutscenes();
+                if (ImGui::Checkbox("Cinematic Black Bars", &blackBars)) { settings.cutsceneBlackBars = blackBars ? 1 : 0; changed = true; }
+
+                ImGui::Separator();
+                ImGui::Text("Display & Debug");
+
+                bool crop16x9 = settings.ShouldFlatPreviewBeCroppedTo16x9();
+                if (ImGui::Checkbox("Crop Flat View to 16:9", &crop16x9)) { settings.cropFlatTo16x9Setting = crop16x9 ? 1 : 0; changed = true; }
+
+                bool debugOverlay = settings.ShowDebugOverlay();
+                if (ImGui::Checkbox("Show Debug Overlay", &debugOverlay)) { settings.enableDebugOverlay = debugOverlay ? 1 : 0; changed = true; }
+
+                ImGui::Separator();
+                ImGui::Text("Fixes");
+                int angularFix = settings.buggyAngularVelocity.getLE();
+                const char* angularOptions[] = { "Auto (Oculus Link)", "Forced On", "Forced Off" };
+                if (angularFix < 0 || angularFix > 2) angularFix = 0;
+                if (ImGui::Combo("Angular Velocity Fixer", &angularFix, angularOptions, 3)) {
+                    settings.buggyAngularVelocity = angularFix;
+                    changed = true;
+                }
+
+                if (changed) {
+                    CemuHooks::SetSettings(settings);
+                }
+
+                ImGui::PopItemWidth();
+                ImGui::Unindent(10.0f);
+                
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
+    }
+    ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 void RND_Renderer::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx) {
@@ -374,6 +676,13 @@ void RND_Renderer::ImGuiOverlay::DrawAndCopyToImage(VkCommandBuffer cb, VkImage 
     auto& frame = renderer->GetFrame(frameIdx);
 
     frame.imguiFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
+
+    // try to delete the staging buffer of the controller scheme textures if possible
+    for (auto imagePage : m_helpImagePages) {
+        for (auto& helpImage : imagePage) {
+            helpImage.m_image->vkTryToFinishAnyUploads(cb);
+        }
+    }
 
     // draw imgui to framebuffer
     VkClearValue clearValue = { .color = { 0.0f, 0.0f, 0.0f, 0.0f } };

@@ -16,19 +16,12 @@ moduleMatches = 0x6267BFD0
 0x10216594 = const_05_10216594:
 0x10216598 = const_3_10216598:
 
-customCameraDistance:
-.float $cameraDistance
-
 hook_UseCustomCameraDistance:
 mflr r0
 stwu r1, -0x10(r1)
 stw r0, 0x14(r1)
 stw r3, 0x08(r1)
 stw r4, 0x04(r1)
-
-; load the user-selected camera distance
-lis r9, customCameraDistance@ha
-lfs f10, customCameraDistance@l(r9)
 
 ; load camera distance like normal
 lis r9, const_05_10216594@ha

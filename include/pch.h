@@ -151,6 +151,11 @@ constexpr bool HAS_FLAG(T1 flags, T2 test_flag) {
 }
 
 template <typename T>
+bool HasEnumFlag(T enumVal, T enumFlag) {
+    return (std::to_underlying(enumVal) & std::to_underlying(enumFlag)) != 0;
+}
+
+template <typename T>
 inline T swapEndianness(T val) {
     if constexpr (std::is_floating_point<T>::value) {
         union {
@@ -435,16 +440,16 @@ enum class EventMode {
 };
 
 struct data_VRSettingsIn {
-    BEType<int32_t> cameraModeSetting;
-    BEType<int32_t> leftHandedSetting;
-    BEType<int32_t> guiFollowSetting;
-    BEType<float> playerHeightSetting;
-    BEType<int32_t> enable2DVRView;
-    BEType<int32_t> cropFlatTo16x9Setting;
-    BEType<int32_t> enableDebugOverlay;
-    BEType<int32_t> buggyAngularVelocity;
-    BEType<int32_t> cutsceneCameraMode;
-    BEType<int32_t> cutsceneBlackBars;
+    BEType<int32_t> cameraModeSetting = 1;
+    BEType<int32_t> leftHandedSetting = 0;
+    BEType<int32_t> guiFollowSetting = 1;
+    BEType<float> playerHeightSetting = 0.0f;
+    BEType<int32_t> cropFlatTo16x9Setting = 1;
+    BEType<int32_t> enableDebugOverlay = 0;
+    BEType<int32_t> buggyAngularVelocity = 0;
+    BEType<int32_t> cutsceneCameraMode = (int32_t)EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS;
+    BEType<int32_t> cutsceneBlackBars = 1;
+    BEType<float> thirdPlayerDistance = 0.5f;
 
     bool IsLeftHanded() const {
         return leftHandedSetting == 1;
@@ -473,10 +478,6 @@ struct data_VRSettingsIn {
 
     bool UIFollowsLookingDirection() const {
         return guiFollowSetting == 1;
-    }
-
-    bool Is2DVRViewEnabled() const {
-        return enable2DVRView == 1;
     }
 
     bool ShouldFlatPreviewBeCroppedTo16x9() const {
@@ -511,7 +512,6 @@ struct data_VRSettingsIn {
         std::format_to(std::back_inserter(buffer), " - Left Handed: {}\n", IsLeftHanded() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - GUI Follow Setting: {}\n", UIFollowsLookingDirection() ? "Follow Looking Direction" : "Fixed");
         std::format_to(std::back_inserter(buffer), " - Player Height: {} meters\n", playerHeightSetting.getLE());
-        std::format_to(std::back_inserter(buffer), " - 2D VR View Enabled: {}\n", Is2DVRViewEnabled() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Crop Flat to 16:9: {}\n", ShouldFlatPreviewBeCroppedTo16x9() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Debug Overlay: {}\n", ShowDebugOverlay() ? "Enabled" : "Disabled");
         std::format_to(std::back_inserter(buffer), " - Cutscene Camera Mode: {}\n", GetCutsceneCameraMode() == EventMode::ALWAYS_FIRST_PERSON ? "Always First Person" : (GetCutsceneCameraMode() == EventMode::ALWAYS_THIRD_PERSON ? "Always Third Person" : "Follow Default Event Settings"));

@@ -36,6 +36,8 @@ public:
             bool wasDownLastFrame = false;
             bool longFired = false;
             bool waitingForSecond = false;
+            bool longFired_actedUpon = false;
+            bool longFired_stillPressed = false;
             std::chrono::steady_clock::time_point pressStartTime;
             std::chrono::steady_clock::time_point lastReleaseTime;
 
@@ -61,7 +63,8 @@ public:
 
             // shared
             XrActionStateBoolean map_scope;
-            XrActionStateBoolean inventory;
+            XrActionStateBoolean inventory_help;
+            ButtonState inventoryState;
 
             // unique
             XrActionStateVector2f move;
@@ -83,7 +86,6 @@ public:
             ButtonState runState;
             ButtonState map_scopeState;
             ButtonState useRune_runeMenuState;
-
         } inGame;
         struct InMenu {
             bool in_game = false;
@@ -94,6 +96,11 @@ public:
             std::array<XrSpaceLocation, 2> poseLocation;
             std::array<XrSpaceVelocity, 2> poseVelocity;
             std::array<XrSpaceLocation, 2> hmdRelativePoseLocation;
+
+            // shared
+            XrActionStateBoolean map;
+            XrActionStateBoolean inventory_help;
+            ButtonState inventoryState;
 
             // unique
             XrActionStateVector2f scroll;
@@ -109,9 +116,6 @@ public:
 
             XrActionStateBoolean leftTrigger;
             XrActionStateBoolean rightTrigger;
-
-            XrActionStateBoolean map;
-            XrActionStateBoolean inventory;
         } inMenu;
     };
     std::atomic<InputState> m_input = InputState{};
@@ -163,8 +167,15 @@ public:
         bool right_hand_position_stored = false;
         int magnesis_forward_frames_interval = 0;
         bool weapon_throwed = false;
-    } gameState ;
+    };
     std::atomic<GameState> m_gameState{};
+    struct HelpMenuState {
+        bool isOpen = false;
+        int currPageIdx = 0;
+        int totalPages = 0;
+        int yScrollOffset = 0;
+    };
+    std::atomic<HelpMenuState> m_helpMenuState{};
 
     // We'll manage the rumble commands priority inside controls.cpp
     struct RumbleParameters {

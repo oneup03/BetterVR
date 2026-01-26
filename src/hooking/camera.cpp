@@ -702,7 +702,7 @@ void CemuHooks::hook_UseCameraDistance(PPCInterpreter_t* hCPU) {
         hCPU->fpr[13].fp0 = 0.0f;
     }
     else {
-        hCPU->fpr[13].fp0 = hCPU->fpr[10].fp0;
+        hCPU->fpr[13].fp0 = GetSettings().thirdPlayerDistance.getLE();
     }
 }
 

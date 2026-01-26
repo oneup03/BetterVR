@@ -506,7 +506,15 @@ void CheckButtonState(bool buttonPressed, ButtonState& buttonState) {
         if (pressDuration >= longPressThreshold) {
             buttonState.lastEvent = ButtonState::Event::LongPress;
             buttonState.longFired = true;
+            if (!buttonState.longFired_stillPressed) {
+                buttonState.longFired_stillPressed = true;
+                buttonState.longFired_actedUpon = true;
+            }
         }
+    }
+    else {
+        buttonState.longFired_stillPressed = false;
+        buttonState.longFired_actedUpon = false;
     }
     
     // Falling edge - button just released
@@ -568,6 +576,19 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
                 }
             }
         }
+    }
+
+    XrActionStateGetInfo getInventoryMenuInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+    getInventoryMenuInfo.action = newState.inGame.in_game ? m_inventoryAction : m_inMenu_inventoryAction;
+    getInventoryMenuInfo.subactionPath = XR_NULL_PATH;
+    newState.inMenu.inventory_help = { XR_TYPE_ACTION_STATE_BOOLEAN };
+    checkXRResult(xrGetActionStateBoolean(m_session, &getInventoryMenuInfo, &newState.inMenu.inventory_help), "Failed to get inventory_help action value!");
+
+    auto& inventoryAction = newState.inMenu.inventory_help;
+    auto& inventoryButtonState = newState.inMenu.inventoryState;
+    if (inventoryAction.isActive == XR_TRUE) {
+        auto buttonPressed = inventoryAction.currentState == XR_TRUE;
+        CheckButtonState(buttonPressed, inventoryButtonState);
     }
 
     if (inMenu) {
@@ -636,13 +657,6 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
         getMapMenuInfo.subactionPath = XR_NULL_PATH;
         newState.inMenu.map = { XR_TYPE_ACTION_STATE_BOOLEAN };
         checkXRResult(xrGetActionStateBoolean(m_session, &getMapMenuInfo, &newState.inMenu.map), "Failed to get map action value!");
-        
-        XrActionStateGetInfo getInventoryMenuInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getInventoryMenuInfo.action = m_inMenu_inventoryAction;
-        getInventoryMenuInfo.subactionPath = XR_NULL_PATH;
-        newState.inMenu.inventory = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getInventoryMenuInfo, &newState.inMenu.inventory), "Failed to get inventory action value!");
-    
     }
     else {
         for (EyeSide side : { EyeSide::LEFT, EyeSide::RIGHT }) {
@@ -672,11 +686,6 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
             auto buttonPressed = map_scopeAction.currentState == XR_TRUE;
             CheckButtonState(buttonPressed, map_scopeButtonState);
         }
-
-        XrActionStateGetInfo getInventoryInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getInventoryInfo.action = m_inventoryAction;
-        newState.inGame.inventory = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getInventoryInfo, &newState.inGame.inventory), "Failed to get inventory action value!");
 
         XrActionStateGetInfo getMoveInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getMoveInfo.action = m_moveAction;
