@@ -561,7 +561,7 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
             playerPos.y += hardcodedSwimOffset;
         }
         else {
-            playerPos.y += GetSettings().playerHeightOffset;
+            playerPos.y += GetSettings().GetPlayerHeightOffset();
         }
 
         basePos = playerPos;

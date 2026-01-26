@@ -12,7 +12,10 @@
 RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, VkExtent2D fbRes, VkFormat fbFormat): m_outputRes(fbRes) {
     ImGui::CreateContext();
     ImGui::GetIO().IniFilename = "BetterVR_settings.ini";
+    InitSettings();
+    ImGui::LoadIniSettingsFromDisk("BetterVR_settings.ini");
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
     ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_HasGamepad;
     ImPlot3D::CreateContext();
     ImPlot::CreateContext();
@@ -466,7 +469,7 @@ void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs) {
     applyInput(ImGuiKey_GamepadFaceDown, confirmDown, 5);
 
     // prevent exiting menu if a popup or field is being edited
-    if (ImGui::IsAnyItemActive()) {
+    if (ImGui::IsAnyItemActive() && ImGui::IsPopupOpen(NULL, ImGuiPopupFlags_AnyPopupId + ImGuiPopupFlags_AnyPopupLevel)) {
         return;
     }
 
@@ -501,10 +504,18 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
         ImGui::End();
     }
 
-    if (!isMenuOpen) return;
+    static bool wasMenuPrevOpened = false;
 
-    if (!ImGui::IsAnyItemActive()) {
+    if (!isMenuOpen && wasMenuPrevOpened) {
+        wasMenuPrevOpened = false;
+    }
+
+    if (!isMenuOpen)
+        return;
+
+    if (isMenuOpen && !wasMenuPrevOpened) {
         ImGui::SetNextWindowFocus();
+        wasMenuPrevOpened = true;
     }
 
     ImVec2 fullWindowWidth = ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
@@ -515,6 +526,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
     if (ImGui::Begin("BetterVR Settings & Help##Settings", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+        bool changed = false;
 
         if (ImGui::BeginTabBar("HelpMenuTabs")) {
             if (ImGui::BeginTabItem("Settings", nullptr, 0)) {
@@ -523,7 +535,6 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                 ImGui::PushItemWidth(windowWidth.x * 0.5f);
 
                 auto& settings = GetSettings();
-                bool changed = false;
 
                 ImGui::Separator();
                 ImGui::Text("Camera Mode");
@@ -639,6 +650,10 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
             }
 
             ImGui::EndTabBar();
+        }
+
+        if (changed) {
+            ImGui::SaveIniSettingsToDisk("BetterVR_settings.ini");
         }
     }
     ImGui::End();

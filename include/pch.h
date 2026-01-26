@@ -524,6 +524,8 @@ struct ModSettings {
 };
 
 extern ModSettings& GetSettings();
+extern void InitSettings();
+
 
 
 #pragma pack(push, 1)
