@@ -668,8 +668,16 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     VPADStatus vpadStatus = {};
 
     auto* renderer = VRManager::instance().XR->GetRenderer();
+    if (renderer) {
+        return;
+    }
+    auto* imguiOverlay = renderer->m_imguiOverlay.get();
+    if (imguiOverlay) {
+        return;
+    }
+
     // todo: revert this to unblock gamepad input
-    if (!(renderer && renderer->m_imguiOverlay && renderer->m_imguiOverlay->ShouldBlockGameInput())) {
+    if (!imguiOverlay->ShouldBlockGameInput()) {
         readMemory(vpadStatusOffset, &vpadStatus);
     }
 
@@ -719,23 +727,22 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         gameState.prevent_grab_inputs = false;
 
     // toggleable help menu
-    OpenXR::HelpMenuState menuState = VRManager::instance().XR->m_helpMenuState.load();
+    auto& isMenuOpen = VRManager::instance().XR->m_isMenuOpen;
     bool inventoryLongPress = inputs.inGame.inventoryState.lastEvent == ButtonState::Event::LongPress && inputs.inGame.inventoryState.longFired_actedUpon;
 
     if (inventoryLongPress) {
         inputs.inGame.inventoryState.longFired_actedUpon = false;
-        menuState.isOpen = !menuState.isOpen;
-        if (menuState.isOpen) {
-            menuState.currPageIdx = 0;
-            menuState.yScrollOffset = 0;
-        }
-    }
-    VRManager::instance().XR->m_helpMenuState.store(menuState);
+        isMenuOpen = !isMenuOpen;
 
-    // Handle pages and block input if active
-    if (menuState.isOpen && VRManager::instance().XR->GetRenderer()->m_imguiOverlay) {
-        VRManager::instance().XR->GetRenderer()->m_imguiOverlay->ProcessInputs(inputs, menuState);
+        // ignore stick input when the help menu is open
+        leftStickSource.currentState = { 0.0f, 0.0f };
+        rightStickSource.currentState = { 0.0f, 0.0f };
+        leftJoystickDir = Direction::None;
+        rightJoystickDir = Direction::None;
     }
+
+    // allow the gamepad inputs to control the imgui overlay
+    imguiOverlay->ProcessInputs(inputs);
 
     //Log::print<INFO>("last_weapon_held_hand : {}", gameState.last_weapon_held_hand);
     //Log::print<INFO>("Is weapon held : {}", gameState.is_weapon_or_object_held);
@@ -746,7 +753,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     HandGestureState leftGesture = {};
     HandGestureState rightGesture = {};
 
-    auto headsetPose = VRManager::instance().XR->GetRenderer()->GetMiddlePose();
+    auto headsetPose = renderer->GetMiddlePose();
     if (headsetPose.has_value()) {
         const auto headsetMtx = headsetPose.value();
         const glm::fvec3 headsetPos(headsetMtx[3]);
@@ -779,7 +786,10 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
 
 
     // Process inputs
-    if (gameState.in_game && !menuState.isOpen) {
+    if (isMenuOpen) {
+        // ignore in-game inputs when the help menu is open
+    }
+    else if (gameState.in_game) {
         if (!gameState.prevent_inputs) {
             // prevent jump when exiting menus with B button
             newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.jump, VPAD_BUTTON_X);
@@ -855,18 +865,12 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         //    newXRBtnHold |= VPAD_BUTTON_B;
         //}
     }
-    else if (!menuState.isOpen) {
+    else {
         handleMenuInput(newXRBtnHold, inputs, gameState, leftJoystickDir);
     }
 
     // Update rumble/haptics
     rumbleMgr->updateHaptics();
-
-    if (menuState.isOpen) {
-        // ignore stick input when the help menu is open
-        leftStickSource.currentState = { 0.0f, 0.0f };
-        rightStickSource.currentState = { 0.0f, 0.0f };
-    }
 
     // sticks
     static uint32_t oldXRStickHold = 0;

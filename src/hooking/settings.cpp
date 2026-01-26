@@ -2,8 +2,12 @@
 #include "instance.h"
 #include "hooking/entity_debugger.h"
 
-std::mutex g_settingsMutex;
-data_VRSettingsIn g_settings = {};
+ModSettings g_settings = {};
+
+ModSettings& GetSettings() {
+    return g_settings;
+}
+
 
 HWND CemuHooks::m_cemuTopWindow = NULL;
 HWND CemuHooks::m_cemuRenderWindow = NULL;
@@ -66,11 +70,10 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
 
     uint32_t ppc_tableOfCutsceneEventSettings = hCPU->gpr[6];
     
-    if (auto& debugger = VRManager::instance().Hooks->m_entityDebugger) {
-        debugger->UpdateEntityMemory();
+    if (GetSettings().ShowDebugOverlay() && VRManager::instance().Hooks->m_entityDebugger) {
+        VRManager::instance().Hooks->m_entityDebugger->UpdateEntityMemory();
     }
 
-    std::lock_guard lock(g_settingsMutex);
     ++s_framesSinceLastCameraUpdate;
 
 #ifdef _DEBUG
@@ -105,17 +108,6 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
 
     initCutsceneDefaultSettings(ppc_tableOfCutsceneEventSettings);
 }
-
-data_VRSettingsIn CemuHooks::GetSettings() {
-    std::lock_guard lock(g_settingsMutex);
-    return g_settings;
-}
-
-void CemuHooks::SetSettings(const data_VRSettingsIn& settings) {
-    std::lock_guard lock(g_settingsMutex);
-    g_settings = settings;
-}
-
 
 void CemuHooks::hook_OSReportToConsole(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
@@ -208,8 +200,6 @@ void CemuHooks::hook_RouteActorJob(PPCInterpreter_t* hCPU) {
     else if (hCPU->gpr[3] == 2) {
         //Log::print<INFO>("[{}] Ran ALTERED VERSION of {}", actorName, jobNameStr);
     }
-
-
 
     // exit r3:
     // 1 = skip job

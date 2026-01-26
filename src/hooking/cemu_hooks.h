@@ -76,9 +76,6 @@ public:
         FreeLibrary(m_cemuHandle);
     };
 
-    static data_VRSettingsIn GetSettings();
-    static void SetSettings(const data_VRSettingsIn& settings);
-
     static HWND m_cemuTopWindow;
     static HWND m_cemuRenderWindow;
     static uint64_t s_memoryBaseAddress;
@@ -167,7 +164,7 @@ public:
         }
         else {
             // no event. Check if gameplay is in first-person mode
-            if (GetSettings().IsFirstPersonMode()) {
+            if (GetSettings().GetCameraMode() == CameraMode::FIRST_PERSON) {
                 return true;
             }
             return false;

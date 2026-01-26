@@ -563,9 +563,9 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
 
                 if ((spaceLocation.locationFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT) != 0) {
                     // rotate angular velocity to world space when it's using a buggy runtime
-                    auto mode = CemuHooks::GetSettings().AngularVelocityFixer_GetMode();
+                    auto mode = GetSettings().AngularVelocityFixer_GetMode();
                     bool isUsingQuestRuntime = m_capabilities.isOculusLinkRuntime;
-                    if ((mode == data_VRSettingsIn::AngularVelocityFixerMode::AUTO && isUsingQuestRuntime) || mode == data_VRSettingsIn::AngularVelocityFixerMode::FORCED_ON) {
+                    if ((mode == AngularVelocityFixerMode::AUTO && isUsingQuestRuntime) || mode == AngularVelocityFixerMode::FORCED_ON) {
                         glm::vec3 angularVelocity = ToGLM(spaceVelocity.angularVelocity);
                         glm::fquat fix_angle = glm::fquat(0.924, -0.383, 0, 0);
                         angularVelocity = (ToGLM(spaceLocation.pose.orientation) * (fix_angle * angularVelocity)); // TODO: Contact other modders for similar issues with angular velocity being not on the grip rotation (quest 2) + Tune the angular velocity based on manually calculated on rotation positions

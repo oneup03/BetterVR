@@ -285,77 +285,77 @@ void RND_Renderer::Layer3D::Render(OpenXR::EyeSide side, long frameIdx) {
 }
 
 const std::array<XrCompositionLayerProjectionView, 2>& RND_Renderer::Layer3D::FinishRendering(long frameIdx) {
-    this->m_swapchains[OpenXR::EyeSide::LEFT]->FinishRendering();
-    this->m_depthSwapchains[OpenXR::EyeSide::LEFT]->FinishRendering();
-    this->m_swapchains[OpenXR::EyeSide::RIGHT]->FinishRendering();
-    this->m_depthSwapchains[OpenXR::EyeSide::RIGHT]->FinishRendering();
+    this->m_swapchains[EyeSide::LEFT]->FinishRendering();
+    this->m_depthSwapchains[EyeSide::LEFT]->FinishRendering();
+    this->m_swapchains[EyeSide::RIGHT]->FinishRendering();
+    this->m_depthSwapchains[EyeSide::RIGHT]->FinishRendering();
 
     // clang-format off
-    m_projectionViews[OpenXR::EyeSide::LEFT] = {
+    m_projectionViews[EyeSide::LEFT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
-        .next = &m_projectionViewsDepthInfo[OpenXR::EyeSide::LEFT],
-        .pose = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::LEFT, frameIdx).value(),
-        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(OpenXR::EyeSide::LEFT, frameIdx).value(),
+        .next = &m_projectionViewsDepthInfo[EyeSide::LEFT],
+        .pose = VRManager::instance().XR->GetRenderer()->GetPose(EyeSide::LEFT, frameIdx).value(),
+        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(EyeSide::LEFT, frameIdx).value(),
         .subImage = {
-            .swapchain = this->m_swapchains[OpenXR::EyeSide::LEFT]->GetHandle(),
+            .swapchain = this->m_swapchains[EyeSide::LEFT]->GetHandle(),
             .imageRect = {
                 .offset = { 0, 0 },
                 .extent = {
-                    .width = (int32_t)this->m_swapchains[OpenXR::EyeSide::LEFT]->GetWidth(),
-                    .height = (int32_t)this->m_swapchains[OpenXR::EyeSide::LEFT]->GetHeight()
+                    .width = (int32_t)this->m_swapchains[EyeSide::LEFT]->GetWidth(),
+                    .height = (int32_t)this->m_swapchains[EyeSide::LEFT]->GetHeight()
                 }
             }
         }
     };
-    m_projectionViewsDepthInfo[OpenXR::EyeSide::LEFT] = {
+    m_projectionViewsDepthInfo[EyeSide::LEFT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR,
         .subImage = {
-            .swapchain = this->m_depthSwapchains[OpenXR::EyeSide::LEFT]->GetHandle(),
+            .swapchain = this->m_depthSwapchains[EyeSide::LEFT]->GetHandle(),
             .imageRect = {
                 .offset = { 0, 0 },
                 .extent = {
-                    .width = (int32_t)this->m_depthSwapchains[OpenXR::EyeSide::LEFT]->GetWidth(),
-                    .height = (int32_t)this->m_depthSwapchains[OpenXR::EyeSide::LEFT]->GetHeight()
+                    .width = (int32_t)this->m_depthSwapchains[EyeSide::LEFT]->GetWidth(),
+                    .height = (int32_t)this->m_depthSwapchains[EyeSide::LEFT]->GetHeight()
                 }
             },
         },
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
-        .nearZ = CemuHooks::GetSettings().GetZNear(),
-        .farZ = CemuHooks::GetSettings().GetZFar(),
+        .nearZ = GetSettings().GetZNear(),
+        .farZ = GetSettings().GetZFar(),
     };
-    m_projectionViews[OpenXR::EyeSide::RIGHT] = {
+    m_projectionViews[EyeSide::RIGHT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
-        .next = &m_projectionViewsDepthInfo[OpenXR::EyeSide::RIGHT],
-        .pose = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::RIGHT, frameIdx).value(),
-        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(OpenXR::EyeSide::RIGHT, frameIdx).value(),
+        .next = &m_projectionViewsDepthInfo[EyeSide::RIGHT],
+        .pose = VRManager::instance().XR->GetRenderer()->GetPose(EyeSide::RIGHT, frameIdx).value(),
+        .fov = VRManager::instance().XR->GetRenderer()->GetFOV(EyeSide::RIGHT, frameIdx).value(),
         .subImage = {
-            .swapchain = this->m_swapchains[OpenXR::EyeSide::RIGHT]->GetHandle(),
+            .swapchain = this->m_swapchains[EyeSide::RIGHT]->GetHandle(),
             .imageRect = {
                 .offset = { 0, 0 },
                 .extent = {
-                    .width = (int32_t)this->m_swapchains[OpenXR::EyeSide::RIGHT]->GetWidth(),
-                    .height = (int32_t)this->m_swapchains[OpenXR::EyeSide::RIGHT]->GetHeight()
+                    .width = (int32_t)this->m_swapchains[EyeSide::RIGHT]->GetWidth(),
+                    .height = (int32_t)this->m_swapchains[EyeSide::RIGHT]->GetHeight()
                 }
             }
         }
     };
-    m_projectionViewsDepthInfo[OpenXR::EyeSide::RIGHT] = {
+    m_projectionViewsDepthInfo[EyeSide::RIGHT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR,
         .subImage = {
-            .swapchain = this->m_depthSwapchains[OpenXR::EyeSide::RIGHT]->GetHandle(),
+            .swapchain = this->m_depthSwapchains[EyeSide::RIGHT]->GetHandle(),
             .imageRect = {
                 .offset = { 0, 0 },
                 .extent = {
-                    .width = (int32_t)this->m_depthSwapchains[OpenXR::EyeSide::RIGHT]->GetWidth(),
-                    .height = (int32_t)this->m_depthSwapchains[OpenXR::EyeSide::RIGHT]->GetHeight()
+                    .width = (int32_t)this->m_depthSwapchains[EyeSide::RIGHT]->GetWidth(),
+                    .height = (int32_t)this->m_depthSwapchains[EyeSide::RIGHT]->GetHeight()
                 }
             },
         },
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
-        .nearZ = CemuHooks::GetSettings().GetZNear(),
-        .farZ = CemuHooks::GetSettings().GetZFar(),
+        .nearZ = GetSettings().GetZNear(),
+        .farZ = GetSettings().GetZFar(),
     };
     // clang-format on
     return m_projectionViews;
@@ -453,7 +453,7 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
     XrPosef layerPose = { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } };
 
     // todo: switch to following UI whenever the player holds a bow
-    if (CemuHooks::GetSettings().UIFollowsLookingDirection()) {
+    if (GetSettings().DoesUIFollowGaze()) {
         m_currentOrientation = glm::slerp(m_currentOrientation, headOrientation, LERP_SPEED);
         glm::vec3 forwardDirection = headOrientation * glm::vec3(0.0f, 0.0f, -1.0f);
 

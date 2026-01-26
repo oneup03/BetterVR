@@ -11,6 +11,7 @@
 
 RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, VkExtent2D fbRes, VkFormat fbFormat): m_outputRes(fbRes) {
     ImGui::CreateContext();
+    ImGui::GetIO().IniFilename = "BetterVR_settings.ini";
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_HasGamepad;
     ImPlot3D::CreateContext();
@@ -304,19 +305,9 @@ void RND_Renderer::ImGuiOverlay::Update() {
         ImGui::GetIO().AddMouseButtonEvent(0, GetAsyncKeyState(VK_LBUTTON) & 0x8000);
         ImGui::GetIO().AddMouseButtonEvent(1, GetAsyncKeyState(VK_RBUTTON) & 0x8000);
         ImGui::GetIO().AddMouseButtonEvent(2, GetAsyncKeyState(VK_MBUTTON) & 0x8000);
-
-        // toggle between no overlay, 2D-only FPS overlay and fps overlay both for 2D and VR
-        bool isF3Pressed = GetKeyState(VK_F3) & 0x8000;
-        if (isF3Pressed && !m_wasF3Pressed) {
-            m_showAppMS++;
-            if (m_showAppMS > 2) {
-                m_showAppMS = 0;
-            }
-        }
-        m_wasF3Pressed = isF3Pressed;
     }
 
-    if (VRManager::instance().Hooks->m_entityDebugger && isWindowFocused) {
+    if (GetSettings().ShowDebugOverlay() && isWindowFocused) {
         VRManager::instance().Hooks->m_entityDebugger->UpdateKeyboardControls();
     }
 }
@@ -350,7 +341,7 @@ void RND_Renderer::ImGuiOverlay::Render(long frameIdx, bool renderBackground) {
     };
 
     if (renderBackground || CemuHooks::UseBlackBarsDuringEvents()) {
-        const bool shouldCrop3DTo16_9 = CemuHooks::GetSettings().cropFlatTo16x9Setting == 1;
+        const bool shouldCrop3DTo16_9 = GetSettings().cropFlatTo16x9 == 1;
 
         bool shouldRender3DBackground = VRManager::instance().XR->GetRenderer()->IsRendering3D(frameIdx) || CemuHooks::UseBlackBarsDuringEvents();
         bool shouldRenderHUDWithAlpha = shouldRender3DBackground && !CemuHooks::UseBlackBarsDuringEvents();
@@ -392,34 +383,47 @@ void RND_Renderer::ImGuiOverlay::Render(long frameIdx, bool renderBackground) {
         renderHUDBackground(VRManager::instance().XR->GetRenderer()->IsRendering3D(frameIdx));
     }
 
-    if (VRManager::instance().Hooks->m_entityDebugger) {
+    if (GetSettings().ShowDebugOverlay()) {
         VRManager::instance().Hooks->m_entityDebugger->DrawEntityInspector();
         VRManager::instance().Hooks->DrawDebugOverlays();
     }
 
-    if ((renderBackground && m_showAppMS == 1) || (m_showAppMS == 2)) {
+    if ((renderBackground && GetSettings().performanceOverlay == 1) || GetSettings().performanceOverlay == 2) {
         EntityDebugger::DrawFPSOverlay(renderer);
     }
 
     DrawHelpMenu();
 }
 
-void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs, OpenXR::HelpMenuState& menuState) {
-    if (!menuState.isOpen) return;
+void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs) {
+    auto& isMenuOpen = VRManager::instance().XR->m_isMenuOpen;
+    if (!isMenuOpen)
+        return;
 
     auto& io = ImGui::GetIO();
     bool inGame = inputs.inGame.in_game;
 
-    // Use in-game move stick or menu navigate stick
-    auto& stick = inGame ? inputs.inGame.move : inputs.inMenu.navigate;
+    bool backDown = false;
+    bool confirmDown = false;
+    XrActionStateVector2f stick;
+    if (inputs.inGame.in_game) {
+        stick = inputs.inGame.move;
+        backDown = inputs.inGame.run_interact_cancel.currentState;
+        confirmDown = inputs.inGame.jump.currentState;
+    }
+    else {
+        stick = inputs.inMenu.navigate;
+        backDown = inputs.inMenu.back.currentState;
+        confirmDown = inputs.inMenu.select.currentState;
+    }
 
-    // Map Stick to DPad with hysteresis and repeating pulse
+    // imgui wants us to only have state changes, and we also want to refiring DPAD inputs (used for moving the menu cursor) when held down
     constexpr float THRESHOLD_PRESS = 0.5f;
     constexpr float THRESHOLD_RELEASE = 0.3f; 
+    constexpr double REFIRE_DELAY = 0.4f;
 
-    static bool dpadState[4] = { false }; // Up, Down, Left, Right
+    static bool dpadState[4] = { false };
     static double lastRefireTime[6] = { 0.0 }; // 0-3 Dpad, 4 B, 5 A
-    constexpr double REFIRE_DELAY = 0.4f; // Seconds between repeats
     double currentTime = ImGui::GetTime();
 
     auto updateDpadState = [&](int idx, float val, bool positive) {
@@ -427,7 +431,8 @@ void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs, OpenX
         if (positive) {
             if (!isPressed && val >= THRESHOLD_PRESS) isPressed = true;
             else if (isPressed && val <= THRESHOLD_RELEASE) isPressed = false;
-        } else {
+        }
+        else {
             if (!isPressed && val <= -THRESHOLD_PRESS) isPressed = true;
             else if (isPressed && val >= -THRESHOLD_RELEASE) isPressed = false;
         }
@@ -440,10 +445,12 @@ void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs, OpenX
             if (currentTime - lastRefireTime[idx] >= REFIRE_DELAY || lastRefireTime[idx] == 0.0) {
                  io.AddKeyEvent(key, true);
                  lastRefireTime[idx] = currentTime;
-            } else {
+            }
+            else {
                  io.AddKeyEvent(key, false);
             }
-        } else {
+        }
+        else {
             io.AddKeyEvent(key, false);
             lastRefireTime[idx] = 0.0;
         }
@@ -454,29 +461,21 @@ void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs, OpenX
     applyInput(ImGuiKey_GamepadDpadLeft, updateDpadState(2, stick.currentState.x, false), 2);
     applyInput(ImGuiKey_GamepadDpadRight, updateDpadState(3, stick.currentState.x, true), 3);
 
-    // Map Buttons
-    bool backDown = false;
-    bool confirmDown = false;
+    // convert B/A to ImGui gamepad face buttons
+    applyInput(ImGuiKey_GamepadFaceRight, backDown, 4);
+    applyInput(ImGuiKey_GamepadFaceDown, confirmDown, 5);
 
-    if (inGame) {
-        backDown = inputs.inGame.run_interact_cancel.currentState;
-        // Map jump (X) to confirm/enter for now since A is not clearly mapped in the InGame struct active here
-        confirmDown = inputs.inGame.jump.currentState;
-    }
-    else {
-        backDown = inputs.inMenu.back.currentState;
-        confirmDown = inputs.inMenu.select.currentState;
+    // prevent exiting menu if a popup or field is being edited
+    if (ImGui::IsAnyItemActive()) {
+        return;
     }
 
-    applyInput(ImGuiKey_GamepadFaceRight, backDown, 4); // B -> Cancel
-    applyInput(ImGuiKey_GamepadFaceDown, confirmDown, 5); // A -> Confirm
-
-    // Handle Exit (B press)
+    // if no inputs or popup is open, allow closing the menu using the cancel/back button
     bool shouldClose = false;
     if (inGame) {
         if (inputs.inGame.run_interact_cancel.changedSinceLastSync && inputs.inGame.run_interact_cancel.currentState) {
             shouldClose = true;
-            inputs.inGame.run_interact_cancel.currentState = XR_FALSE; // consume
+            inputs.inGame.run_interact_cancel.currentState = XR_FALSE;
         }
     }
     else {
@@ -486,15 +485,14 @@ void RND_Renderer::ImGuiOverlay::ProcessInputs(OpenXR::InputState& inputs, OpenX
     }
 
     if (shouldClose) {
-        menuState.isOpen = false;
-        VRManager::instance().XR->m_helpMenuState.store(menuState);
+        VRManager::instance().XR->m_isMenuOpen = false;
     }
 }
 
 void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
-    auto menuState = VRManager::instance().XR->m_helpMenuState.load();
+    auto& isMenuOpen = VRManager::instance().XR->m_isMenuOpen;
 
-    if (ImGui::GetTime() < 10.0f && !menuState.isOpen) {
+    if (ImGui::GetTime() < 10.0f && !isMenuOpen) {
         ImGui::SetNextWindowBgAlpha(0.8f);
         ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Always);
         if (ImGui::Begin("HelpNotify", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs)) {
@@ -503,7 +501,11 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
         ImGui::End();
     }
 
-    if (!menuState.isOpen) return;
+    if (!isMenuOpen) return;
+
+    if (!ImGui::IsAnyItemActive()) {
+        ImGui::SetNextWindowFocus();
+    }
 
     ImVec2 fullWindowWidth = ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
     ImVec2 windowWidth = fullWindowWidth * ImVec2(0.8f, 1.0f);
@@ -511,19 +513,112 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
     ImGui::SetNextWindowPos(fullWindowWidth * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(windowWidth, ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::SetNextWindowFocus();
 
-    if (ImGui::Begin("BetterVR Settings & Help | Press B Or Long-Press Inventory Button To Exit", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+    if (ImGui::Begin("BetterVR Settings & Help##Settings", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
 
         if (ImGui::BeginTabBar("HelpMenuTabs")) {
-            auto tabFlags = [](int idx, int current) {
-                return (idx == current) ? ImGuiTabItemFlags_SetSelected : 0;
-            };
+            if (ImGui::BeginTabItem("Settings", nullptr, 0)) {
+                ImGui::Dummy(ImVec2(0.0f, 10.0f));
+                ImGui::Indent(10.0f);
+                ImGui::PushItemWidth(windowWidth.x * 0.5f);
 
-            if (ImGui::BeginTabItem("Control Guide", nullptr, 0)) {
-                menuState.currPageIdx = 0;
-                VRManager::instance().XR->m_helpMenuState.store(menuState);
+                auto& settings = GetSettings();
+                bool changed = false;
 
+                ImGui::Separator();
+                ImGui::Text("Camera Mode");
+                int cameraMode = (int)settings.cameraMode.load();
+                if (ImGui::RadioButton("First Person", &cameraMode, 1)) { settings.cameraMode = CameraMode::FIRST_PERSON; changed = true; }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Third Person", &cameraMode, 0)) { settings.cameraMode = CameraMode::THIRD_PERSON; changed = true; }
+
+                if (cameraMode == 0) {
+                    float distance = settings.thirdPlayerDistance;
+                    if (ImGui::SliderFloat("Camera Distance", &distance, 0.4f, 1.1f, "%.2f m")) {
+                        settings.thirdPlayerDistance = distance;
+                        changed = true;
+                    }
+                }
+                else {
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Comfort & Accessibility");
+                if (cameraMode == 1) {
+                    bool leftHanded = settings.leftHanded;
+                    if (ImGui::Checkbox("Left Handed Mode", &leftHanded)) {
+                        settings.leftHanded = leftHanded ? 1 : 0;
+                        changed = true;
+                    }
+
+                    bool guiFollow = settings.uiFollowsGaze;
+                    if (ImGui::Checkbox("UI Follows View", &guiFollow)) {
+                        settings.uiFollowsGaze = guiFollow ? 1 : 0;
+                        changed = true;
+                    }
+
+                    ImGui::Separator();
+                    ImGui::Text("Player Height Offset");
+                    float height = settings.playerHeightOffset;
+                    if (ImGui::SliderFloat("Height (meters)", &height, -0.5f, 1.0f, "%.2f")) {
+                        settings.playerHeightOffset = height;
+                        changed = true;
+                    }
+                    if (ImGui::Button("Reset Height")) {
+                        settings.playerHeightOffset = 0.0f;
+                        changed = true;
+                    }
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Cutscenes");
+                int cutsceneMode = (int)settings.cutsceneCameraMode.load();
+                int currentCutsceneModeIdx = cutsceneMode - 1;
+                if (currentCutsceneModeIdx < 0) currentCutsceneModeIdx = 1; 
+                if (ImGui::Combo("Camera In Cutscenes", &currentCutsceneModeIdx, "First Person (Always)\0Optimal Settings (Mix Of Third/First)\0Third Person (Always)\0\0")) {
+                     settings.cutsceneCameraMode = (EventMode)(currentCutsceneModeIdx + 1);
+                     changed = true;
+                }
+
+                bool blackBars = settings.useBlackBarsForCutscenes;
+                if (ImGui::Checkbox("Cinematic Black Bars", &blackBars)) { settings.useBlackBarsForCutscenes = blackBars ? 1 : 0; changed = true; }
+
+                if (ImGui::CollapsingHeader("Advanced Settings")) {
+                    bool crop16x9 = settings.cropFlatTo16x9;
+                    if (ImGui::Checkbox("Crop VR Image To 16:9 Image Inside Cemu Window", &crop16x9)) {
+                        settings.cropFlatTo16x9 = crop16x9 ? 1 : 0;
+                        changed = true;
+                    }
+
+                    bool debugOverlay = settings.ShowDebugOverlay();
+                    if (ImGui::Checkbox("Show Debug Overlay (very experimental, will cause issues!)", &debugOverlay)) {
+                        settings.enableDebugOverlay = debugOverlay ? 1 : 0;
+                        changed = true;
+                    }
+
+                    if (VRManager::instance().XR->m_capabilities.isOculusLinkRuntime) {
+                        int angularFix = (int)settings.buggyAngularVelocity.load();
+                        const char* angularOptions[] = { "Auto (Oculus Link)", "Forced On", "Forced Off" };
+                        if (angularFix < 0 || angularFix > 2) angularFix = 0;
+                        if (ImGui::Combo("Angular Velocity Fixer", &angularFix, angularOptions, 3)) {
+                            settings.buggyAngularVelocity = (AngularVelocityFixerMode)angularFix;
+                            changed = true;
+                        }
+                    }
+                    else {
+                        settings.buggyAngularVelocity = AngularVelocityFixerMode::AUTO;
+                    }
+                }
+
+
+
+                ImGui::PopItemWidth();
+                ImGui::Unindent(10.0f);
+                
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Control Scheme Guide/Help", nullptr, 0)) {
                 ImGui::PushItemWidth(windowWidth.x * 0.5f);
 
                 for (const auto& imagePage : m_helpImagePages) {
@@ -543,109 +638,6 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                 ImGui::EndTabItem();
             }
 
-            if (ImGui::BeginTabItem("Settings", nullptr, 0)) {
-                menuState.currPageIdx = 1;
-                VRManager::instance().XR->m_helpMenuState.store(menuState);
-
-                ImGui::Dummy(ImVec2(0.0f, 10.0f));
-                ImGui::Indent(10.0f);
-                ImGui::PushItemWidth(windowWidth.x * 0.5f);
-
-                auto settings = CemuHooks::GetSettings();
-                bool changed = false;
-
-                ImGui::Separator();
-                ImGui::Text("Camera Mode");
-                int cameraMode = settings.IsFirstPersonMode() ? 1 : 0;
-                if (ImGui::RadioButton("First Person", &cameraMode, 1)) { settings.cameraModeSetting = 1; changed = true; }
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Third Person", &cameraMode, 0)) { settings.cameraModeSetting = 0; changed = true; }
-
-                if (cameraMode == 0) {
-                    float distance = settings.thirdPlayerDistance.getLE();
-                    if (ImGui::SliderFloat("Camera Distance", &distance, 0.4f, 1.1f, "%.2f m")) {
-                        settings.thirdPlayerDistance = distance;
-                        changed = true;
-                    }
-                }
-                else {
-                    
-                }
-
-                ImGui::Separator();
-                ImGui::Text("Comfort & Accessibility");
-                if (cameraMode == 1) {
-                    bool leftHanded = settings.IsLeftHanded();
-                    if (ImGui::Checkbox("Left Handed Mode", &leftHanded)) {
-                        settings.leftHandedSetting = leftHanded ? 1 : 0;
-                        changed = true;
-                    }
-
-                    bool guiFollow = settings.UIFollowsLookingDirection();
-                    if (ImGui::Checkbox("UI Follows View", &guiFollow)) {
-                        settings.guiFollowSetting = guiFollow ? 1 : 0;
-                        changed = true;
-                    }
-
-                    ImGui::Separator();
-                    ImGui::Text("Player Height Offset");
-                    float height = settings.playerHeightSetting.getLE();
-                    if (ImGui::SliderFloat("Height (meters)", &height, -0.5f, 1.0f, "%.2f")) {
-                        settings.playerHeightSetting = height;
-                        changed = true;
-                    }
-                    if (ImGui::Button("Reset Height")) {
-                        settings.playerHeightSetting = 0.0f;
-                        changed = true;
-                    }
-                }
-                else {
-                    settings.playerHeightSetting = 0.0f;
-                    settings.guiFollowSetting = 1;
-                    settings.leftHandedSetting = 0;
-                }
-
-                ImGui::Separator();
-                ImGui::Text("Cutscenes");
-                int cutsceneMode = settings.cutsceneCameraMode.getLE();
-                int currentCutsceneModeIdx = cutsceneMode - 1;
-                if (currentCutsceneModeIdx < 0) currentCutsceneModeIdx = 1; 
-                if (ImGui::Combo("Cutscene Camera", &currentCutsceneModeIdx, "First Person (Always)\0Recommended (Mix)\0Third Person (Always)\0\0")) {
-                     settings.cutsceneCameraMode = currentCutsceneModeIdx + 1;
-                     changed = true;
-                }
-
-                bool blackBars = settings.UseBlackBarsForCutscenes();
-                if (ImGui::Checkbox("Cinematic Black Bars", &blackBars)) { settings.cutsceneBlackBars = blackBars ? 1 : 0; changed = true; }
-
-                ImGui::Separator();
-                ImGui::Text("Display & Debug");
-
-                bool crop16x9 = settings.ShouldFlatPreviewBeCroppedTo16x9();
-                if (ImGui::Checkbox("Crop Flat View to 16:9", &crop16x9)) { settings.cropFlatTo16x9Setting = crop16x9 ? 1 : 0; changed = true; }
-
-                bool debugOverlay = settings.ShowDebugOverlay();
-                if (ImGui::Checkbox("Show Debug Overlay", &debugOverlay)) { settings.enableDebugOverlay = debugOverlay ? 1 : 0; changed = true; }
-
-                ImGui::Separator();
-                ImGui::Text("Fixes");
-                int angularFix = settings.buggyAngularVelocity.getLE();
-                const char* angularOptions[] = { "Auto (Oculus Link)", "Forced On", "Forced Off" };
-                if (angularFix < 0 || angularFix > 2) angularFix = 0;
-                if (ImGui::Combo("Angular Velocity Fixer", &angularFix, angularOptions, 3)) {
-                    settings.buggyAngularVelocity = angularFix;
-                    changed = true;
-                }
-
-                if (changed) {
-                    CemuHooks::SetSettings(settings);
-                }
-
-                ImGui::PopItemWidth();
-                ImGui::Unindent(10.0f);
-                
-                ImGui::EndTabItem();
-            }
             ImGui::EndTabBar();
         }
     }

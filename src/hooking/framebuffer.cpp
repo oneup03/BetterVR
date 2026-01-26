@@ -104,9 +104,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkCommandBufferDispatc
 
                     Log::print<INFO>("Found rendering resolution {}x{} @ {} using capture #{}", renderRes.width, renderRes.height, it->second.second, captureIdx);
                     imguiOverlay = std::make_unique<RND_Renderer::ImGuiOverlay>(commandBuffer, renderRes, VK_FORMAT_A2B10G10R10_UNORM_PACK32);
-                    if (CemuHooks::GetSettings().ShowDebugOverlay()) {
-                        VRManager::instance().Hooks->m_entityDebugger = std::make_unique<EntityDebugger>();
-                    }
+                    VRManager::instance().Hooks->m_entityDebugger = std::make_unique<EntityDebugger>();
                 }
                 else {
                     checkAssert(false, "Couldn't find image resolution in map!");

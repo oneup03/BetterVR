@@ -163,7 +163,7 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     glm::fvec3 cameraAt = camera.at.getLE();
     glm::fquat lookAtQuat = glm::quatLookAtRH(glm::normalize(cameraAt - cameraPos), { 0.0, 1.0, 0.0 });
     glm::fvec3 lookAtPos = cameraPos;
-    //lookAtPos.y += GetSettings().playerHeightSetting.getLE();
+    //lookAtPos.y += GetSettings().playerHeightOffset.getLE();
 
     // read bone name
     if (boneNamePtr == 0)
@@ -311,7 +311,7 @@ void CemuHooks::hook_DropEquipment(PPCInterpreter_t* hCPU) {
 
 void CemuHooks::hook_GetContactLayerOfAttack(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
-    if (GetSettings().IsThirdPersonMode()) {
+    if (GetSettings().GetCameraMode() == CameraMode::THIRD_PERSON) {
         return;
     }
 
@@ -353,9 +353,8 @@ void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
 
-    if (GetSettings().IsThirdPersonMode()) {
+    if (GetSettings().GetCameraMode() == CameraMode::THIRD_PERSON)
         return;
-    }
 
     uint32_t weaponPtr = hCPU->gpr[3];
     uint32_t heldIndex = hCPU->gpr[5]; // this is either 0 or 1 depending on which hand the weapon is in

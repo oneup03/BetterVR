@@ -169,13 +169,7 @@ public:
         bool weapon_throwed = false;
     };
     std::atomic<GameState> m_gameState{};
-    struct HelpMenuState {
-        bool isOpen = false;
-        int currPageIdx = 0;
-        int totalPages = 0;
-        int yScrollOffset = 0;
-    };
-    std::atomic<HelpMenuState> m_helpMenuState{};
+    std::atomic_bool m_isMenuOpen;
 
     // We'll manage the rumble commands priority inside controls.cpp
     struct RumbleParameters {

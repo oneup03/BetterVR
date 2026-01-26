@@ -180,7 +180,7 @@ public:
         void Render(long frameIdx, bool renderBackground);
         void DrawAndCopyToImage(VkCommandBuffer cb, VkImage destImage, long frameIdx);
         void DrawHelpMenu();
-        void ProcessInputs(OpenXR::InputState& inputs, OpenXR::HelpMenuState& menuState);
+        void ProcessInputs(OpenXR::InputState& inputs);
         int GetHelpImagePagesCount() const { return m_helpImagePages.size(); };
 
     private:
@@ -194,9 +194,6 @@ public:
 
         VkSampler m_sampler = VK_NULL_HANDLE;
         VkExtent2D m_outputRes = {};
-
-        uint8_t m_showAppMS = 0;
-        bool m_wasF3Pressed = false;
     };
 
     std::unique_ptr<Layer3D> m_layer3D;
