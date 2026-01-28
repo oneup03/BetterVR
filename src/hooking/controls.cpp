@@ -162,6 +162,10 @@ bool isHandFarEnoughFromStoredPosition(const HandGestureState& gesture) {
     return gesture.isFarEnoughFromStoredPosition;
 }
 
+bool isHandNotOverAnySlot(const HandGestureState& gesture) {
+    return !gesture.isBehindHead && !gesture.isBehindHeadWithWaistOffset && !gesture.isCloseToMouth;
+}
+
 bool handleDpadMenu(ButtonState::Event lastEvent, HandGestureState handGesture, uint32_t& buttonHold, OpenXR::GameState& gameState ) {
     if (lastEvent == ButtonState::Event::LongPress) {
         //Inverse the menu side for bows, so the menu corresponds to the hand side holding the weapon
@@ -361,6 +365,12 @@ void handleLeftHandInGameInput(
             buttonHold |= VPAD_BUTTON_A;
         }
     }
+
+    if (isHandNotOverAnySlot(leftGesture) && isGrabPressedLong) {
+        if (!gameState.prevent_grab_inputs) {
+            buttonHold |= VPAD_BUTTON_A;
+        }
+    }
 }
 
 void handleRightHandInGameInput(
@@ -517,6 +527,12 @@ void handleRightHandInGameInput(
 
     if (isGrabPressedShort) {
         // Handle grab action
+        if (!gameState.prevent_grab_inputs) {
+            buttonHold |= VPAD_BUTTON_A;
+        }
+    }
+
+    if (isHandNotOverAnySlot(rightGesture) && isGrabPressedLong) {
         if (!gameState.prevent_grab_inputs) {
             buttonHold |= VPAD_BUTTON_A;
         }
