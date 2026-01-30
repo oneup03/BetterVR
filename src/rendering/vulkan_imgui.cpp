@@ -531,7 +531,7 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
     ImGui::SetNextWindowSize(windowWidth, ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-    if (ImGui::Begin("BetterVR Settings & Help | Long-Press Right Thumbstick To Exit Or Press B##Settings", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+    if (ImGui::Begin("BetterVR Settings & Help | Long-Press The X Button (or A button on left controller for Valve hmd) To Exit Or Press B##Settings", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
         bool changed = false;
 
         if (ImGui::BeginTabBar("HelpMenuTabs")) {
