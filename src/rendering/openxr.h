@@ -116,7 +116,9 @@ public:
         bool in_game = false;
         bool was_in_game = false;
         bool map_open = false; // map = true, inventory = false
+        bool dpad_menu_open_requested = false;
         bool dpad_menu_open = false;
+        bool was_dpad_menu_open = false;
         bool rune_menu_open = false;
         Direction last_dpad_menu_open = Direction::None;
 
