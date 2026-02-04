@@ -109,9 +109,6 @@ public:
     std::atomic<glm::fquat> m_inputCameraRotation = glm::identity<glm::fquat>();
 
     struct GameState {
-        bool left_equip_type_set_this_frame = false;
-        bool right_equip_type_set_this_frame = false;
-
         uint32_t previous_button_hold;
         bool in_game = false;
         bool was_in_game = false;

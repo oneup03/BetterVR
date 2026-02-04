@@ -244,7 +244,6 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
                 equipType = EquipType::Arrow;
 
             gameState.right_hand_current_equip_type = equipType;
-            gameState.right_equip_type_set_this_frame = true;
         }
         else {
             gameState.has_something_in_left_hand = true;
@@ -252,7 +251,6 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
                 equipType = EquipType::SheikahSlate;
 
             gameState.left_hand_current_equip_type = equipType;
-            gameState.left_equip_type_set_this_frame = true;
         }
         VRManager::instance().XR->m_gameState.store(gameState);
 

@@ -15,6 +15,35 @@ Direction getJoystickDirection(const XrVector2f& stick)
     return Direction::None;
 }
 
+void spreadWeaponDetectionOverFrames(OpenXR::GameState& gameState) {
+    // Spread the weapon detection from link's attachement bones over several frames.
+    // Each bone isn't necessarily checked each frames which can give wrong results sometimes
+    // Also, some animations seem to make the weapon not detected correctly (shooting arrow)
+    constexpr uint8_t REQUIRED_FRAMES = 5;
+    if (gameState.right_hand_current_equip_type != gameState.right_hand_previous_frame_equip_type) {
+        gameState.right_hand_equip_type_change_requested_over_frames++;
+        if (gameState.right_hand_equip_type_change_requested_over_frames > REQUIRED_FRAMES) {
+            gameState.right_hand_equip_type_change_requested_over_frames = 0;
+        }
+        else
+            gameState.right_hand_current_equip_type = gameState.right_hand_previous_frame_equip_type;
+    }
+    else {
+        gameState.right_hand_equip_type_change_requested_over_frames = 0;
+    }
+
+    if (gameState.left_hand_current_equip_type != gameState.left_hand_previous_frame_equip_type) {
+        gameState.left_hand_equip_type_change_requested_over_frames++;
+        if (gameState.left_hand_equip_type_change_requested_over_frames > REQUIRED_FRAMES) {
+            gameState.left_hand_equip_type_change_requested_over_frames = 0;
+        }
+        else
+            gameState.left_hand_current_equip_type = gameState.left_hand_previous_frame_equip_type;
+    }
+    else {
+        gameState.left_hand_equip_type_change_requested_over_frames = 0;
+    }
+}
 
 struct HandGestureState {
     bool isBehindHead;
@@ -29,7 +58,7 @@ struct HandGestureState {
     float magnesisVerticalAmount;
 };
 
-int GetMagnesisForwardFrameInterval(float v)
+int getMagnesisForwardFrameInterval(float v)
 {
     if (v <= 0.0f)    return 0;
     if (v <= 0.25f) return 10;
@@ -127,7 +156,7 @@ HandGestureState calculateHandGesture(
             }
             else if (gameState.magnesis_forward_frames_interval <= -1)
             {
-                gameState.magnesis_forward_frames_interval = GetMagnesisForwardFrameInterval(glm::abs(gesture.magnesisForwardAmount));
+                gameState.magnesis_forward_frames_interval = getMagnesisForwardFrameInterval(glm::abs(gesture.magnesisForwardAmount));
             }
             
             gameState.magnesis_forward_frames_interval--;
@@ -302,7 +331,7 @@ void equipWeaponOnDpadMenuExit(uint32_t& buttonHold, OpenXR::GameState& gameStat
 }
 
 // Input handling functions
-void handleLeftHandInGameInput(
+void processLeftHandInGameInput(
     uint32_t& buttonHold,
     OpenXR::InputState& inputs,
     OpenXR::GameState& gameState,
@@ -485,7 +514,7 @@ void handleLeftHandInGameInput(
     }
 }
 
-void handleRightHandInGameInput(
+void processRightHandInGameInput(
     uint32_t& buttonHold,
     OpenXR::InputState& inputs,
     OpenXR::GameState& gameState,
@@ -652,7 +681,7 @@ void handleRightHandInGameInput(
     }
 }
 
-void handleLeftTriggerBindings(
+void processLeftTriggerBindings(
     uint32_t& buttonHold,
     OpenXR::InputState& inputs,
     OpenXR::GameState& gameState,
@@ -689,7 +718,7 @@ void handleLeftTriggerBindings(
     }    
 }
 
-void handleRightTriggerBindings(
+void processRightTriggerBindings(
     uint32_t& buttonHold,
     OpenXR::InputState& inputs,
     OpenXR::GameState& gameState,
@@ -750,7 +779,7 @@ void handleRightTriggerBindings(
     }
 }
 
-void handleMenuInput(
+void processMenuInput(
     uint32_t& buttonHold,
     OpenXR::InputState& inputs,
     OpenXR::GameState& gameState,
@@ -779,7 +808,113 @@ void handleMenuInput(
         buttonHold |= VPAD_BUTTON_X;
 }
 
+void processInputPrevention(OpenXR::GameState& gameState, std::chrono::steady_clock::time_point now, std::chrono::milliseconds delay)
+{
+    // check if we need to prevent inputs from happening
+    if (gameState.in_game != gameState.was_in_game) {
+        gameState.prevent_inputs = true;
+        gameState.prevent_inputs_time = now;
+    }
+
+    if (gameState.prevent_inputs && now >= gameState.prevent_inputs_time + delay)
+        gameState.prevent_inputs = false;
+
+    if (gameState.prevent_grab_inputs && now >= gameState.prevent_grab_time + delay)
+        gameState.prevent_grab_inputs = false;
+}
+
+void processModMenuInput(std::atomic_bool& isMenuOpen, OpenXR::InputState& inputs, RND_Renderer::ImGuiOverlay* imguiOverlay, XrActionStateVector2f& leftStickSource, XrActionStateVector2f& rightStickSource, Direction& leftJoystickDir, Direction& rightJoystickDir)
+{
+    // toggleable help menu
+    if (inputs.shared.modMenuState.lastEvent == ButtonState::Event::LongPress && inputs.shared.modMenuState.longFired_actedUpon) {
+        isMenuOpen = !isMenuOpen;
+        inputs.shared.modMenuState.longFired_actedUpon = false;
+    }
+
+    // allow the gamepad inputs to control the imgui overlay
+    imguiOverlay->ProcessInputs(inputs);
+
+    // ignore stick input when the help menu is open
+    if (isMenuOpen) {
+        leftStickSource.currentState = { 0.0f, 0.0f };
+        rightStickSource.currentState = { 0.0f, 0.0f };
+        leftJoystickDir = Direction::None;
+        rightJoystickDir = Direction::None;
+    }
+}
+
+void processHandGesture(RND_Renderer* renderer, OpenXR::InputState& inputs, HandGestureState& leftGesture, HandGestureState& rightGesture, OpenXR::GameState& gameState)
+{
+    auto headsetPose = renderer->GetMiddlePose();
+    if (headsetPose.has_value()) {
+        const auto headsetMtx = headsetPose.value();
+        const glm::fvec3 headsetPos(headsetMtx[3]);
+        
+        const auto leftHandPos = ToGLM(inputs.shared.poseLocation[0].pose.position);
+        const auto rightHandPos = ToGLM(inputs.shared.poseLocation[1].pose.position);
+        
+        leftGesture = calculateHandGesture(gameState, leftHandPos, headsetMtx, headsetPos, gameState.left_hand_position_stored, gameState.stored_left_hand_position);
+        rightGesture = calculateHandGesture(gameState, rightHandPos, headsetMtx, headsetPos, gameState.right_hand_position_stored, gameState.stored_right_hand_position);
+    }
+}
+
+void processJoystickInput(VPADButtons& oldXRStickHold, VPADButtons& newXRStickHold, VPADStatus& vpadStatus, XrActionStateVector2f& leftStickSource, XrActionStateVector2f& rightStickSource)
+{
+    // movement/navigation stick
+    vpadStatus.leftStick = { leftStickSource.currentState.x + vpadStatus.leftStick.x.getLE(), leftStickSource.currentState.y + vpadStatus.leftStick.y.getLE() };
+
+    if (leftStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_LEFT) && leftStickSource.currentState.x <= -HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_L_EMULATION_LEFT;
+    else if (leftStickSource.currentState.x >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_RIGHT) && leftStickSource.currentState.x >= HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_L_EMULATION_RIGHT;
+
+    if (leftStickSource.currentState.y <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_DOWN) && leftStickSource.currentState.y <= -HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_L_EMULATION_DOWN;
+    else if (leftStickSource.currentState.y >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_UP) && leftStickSource.currentState.y >= HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_L_EMULATION_UP;
+
+    vpadStatus.rightStick = {rightStickSource.currentState.x + vpadStatus.rightStick.x.getLE(), rightStickSource.currentState.y + vpadStatus.rightStick.y.getLE()};
+
+    if (rightStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_LEFT) && rightStickSource.currentState.x <= -HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_R_EMULATION_LEFT;
+    else if (rightStickSource.currentState.x >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_RIGHT) && rightStickSource.currentState.x >= HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_R_EMULATION_RIGHT;
+
+    if (rightStickSource.currentState.y <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_DOWN) && rightStickSource.currentState.y <= -HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_R_EMULATION_DOWN;
+    else if (rightStickSource.currentState.y >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_UP) && rightStickSource.currentState.y >= HOLD_THRESHOLD))
+        newXRStickHold |= VPAD_STICK_R_EMULATION_UP;
+
+    oldXRStickHold = newXRStickHold;
+}
+
 XrTime prev_sample = 0;
+
+void updatePreviousValues(OpenXR::GameState& gameState, uint32_t& buttonHold, HandGestureState& leftGesture, HandGestureState& rightGesture, XrTime inputTime)
+{
+        // (re)set values for next frame
+    gameState.previous_button_hold = buttonHold;
+    gameState.was_in_game = gameState.in_game;
+    if (gameState.in_game) {
+        gameState.has_something_in_right_hand = false;                    // updated in hook_ChangeWeaponMtx
+        gameState.has_something_in_left_hand = false;                     // updated in hook_ChangeWeaponMtx
+        gameState.is_throwable_object_held = false;                       // updated in hook_ChangeWeaponMtx
+        gameState.left_hand_previous_frame_equip_type = gameState.left_hand_current_equip_type;   // use the previous values if no new values are written from hook_ChangeWeaponMtx this frame
+        gameState.right_hand_previous_frame_equip_type = gameState.right_hand_current_equip_type; // use the previous values if no new values are written from hook_ChangeWeaponMtx this frame
+        gameState.left_hand_current_equip_type = EquipType::None;                      // updated in hook_ChangeWeaponMtx
+        gameState.right_hand_current_equip_type = EquipType::None;                     // updated in hook_ChangeWeaponMtx
+    }
+    
+    // Pull gesture
+    gameState.right_hand_was_over_left_shoulder_slot = isHandOverLeftShoulderSlot(rightGesture);
+    gameState.right_hand_was_over_right_shoulder_slot = isHandOverRightShoulderSlot(rightGesture);
+    gameState.right_hand_was_over_left_waist_slot = isHandOverLeftWaistSlot(rightGesture);
+    gameState.left_hand_was_over_left_shoulder_slot = isHandOverLeftShoulderSlot(leftGesture);
+    gameState.left_hand_was_over_right_shoulder_slot = isHandOverRightShoulderSlot(leftGesture);
+    gameState.left_hand_was_over_left_waist_slot = isHandOverLeftWaistSlot(leftGesture);
+
+    prev_sample = inputTime;
+}
 
 void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
@@ -854,54 +989,16 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     constexpr std::chrono::milliseconds delay{ 400 };
     const auto now = std::chrono::steady_clock::now();
 
+    processInputPrevention(gameState, now, delay);
 
-    // check if we need to prevent inputs from happening
-    if (gameState.in_game != gameState.was_in_game) {
-        gameState.prevent_inputs = true;
-        gameState.prevent_inputs_time = now;
-    }
-
-    if (gameState.prevent_inputs && now >= gameState.prevent_inputs_time + delay)
-        gameState.prevent_inputs = false;
-
-    if (gameState.prevent_grab_inputs && now >= gameState.prevent_grab_time + delay)
-        gameState.prevent_grab_inputs = false;
-
-    // toggleable help menu
     auto& isMenuOpen = VRManager::instance().XR->m_isMenuOpen;
-
-    if (inputs.shared.modMenuState.lastEvent == ButtonState::Event::LongPress && inputs.shared.modMenuState.longFired_actedUpon) {
-        isMenuOpen = !isMenuOpen;
-        inputs.shared.modMenuState.longFired_actedUpon = false;
-    }
-
-    // allow the gamepad inputs to control the imgui overlay
-    imguiOverlay->ProcessInputs(inputs);
-
-    // ignore stick input when the help menu is open
-    if (isMenuOpen) {
-        leftStickSource.currentState = { 0.0f, 0.0f };
-        rightStickSource.currentState = { 0.0f, 0.0f };
-        leftJoystickDir = Direction::None;
-        rightJoystickDir = Direction::None;
-    }
+    processModMenuInput(isMenuOpen, inputs, imguiOverlay, leftStickSource, rightStickSource, leftJoystickDir, rightJoystickDir);
 
     // Calculate hand gestures
     HandGestureState leftGesture = {};
     HandGestureState rightGesture = {};
+    processHandGesture(renderer, inputs, leftGesture, rightGesture, gameState);
 
-    auto headsetPose = renderer->GetMiddlePose();
-    if (headsetPose.has_value()) {
-        const auto headsetMtx = headsetPose.value();
-        const glm::fvec3 headsetPos(headsetMtx[3]);
-        
-        const auto leftHandPos = ToGLM(inputs.shared.poseLocation[0].pose.position);
-        const auto rightHandPos = ToGLM(inputs.shared.poseLocation[1].pose.position);
-        
-        leftGesture = calculateHandGesture(gameState, leftHandPos, headsetMtx, headsetPos, gameState.left_hand_position_stored, gameState.stored_left_hand_position);
-        rightGesture = calculateHandGesture(gameState, rightHandPos, headsetMtx, headsetPos, gameState.right_hand_position_stored, gameState.stored_right_hand_position);
-    }
-    
     keepDpadMenuOpen(newXRBtnHold, gameState);
 
     // Process inputs
@@ -909,33 +1006,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         // ignore inputs when the mod menu is open
     }
     else if (gameState.in_game) {
-        // Spread the weapon detection from link's attachement bones over several frames.
-        // Each bone isn't necessarily checked each frames which can give wrong results sometimes
-        // Also, some animations seem to make the weapon not detected correctly (shooting arrow)
-        constexpr uint8_t REQUIRED_FRAMES = 5;
-        if (gameState.right_hand_current_equip_type != gameState.right_hand_previous_frame_equip_type) {
-            gameState.right_hand_equip_type_change_requested_over_frames++;
-            if (gameState.right_hand_equip_type_change_requested_over_frames > REQUIRED_FRAMES) {
-                gameState.right_hand_equip_type_change_requested_over_frames = 0;
-            }
-            else
-                gameState.right_hand_current_equip_type = gameState.right_hand_previous_frame_equip_type;
-        }
-        else {
-            gameState.right_hand_equip_type_change_requested_over_frames = 0;
-        }
-
-        if (gameState.left_hand_current_equip_type != gameState.left_hand_previous_frame_equip_type) {
-            gameState.left_hand_equip_type_change_requested_over_frames++;
-            if (gameState.left_hand_equip_type_change_requested_over_frames > REQUIRED_FRAMES) {
-                gameState.left_hand_equip_type_change_requested_over_frames = 0;
-            }
-            else
-                gameState.left_hand_current_equip_type = gameState.left_hand_previous_frame_equip_type;
-        }
-        else {
-            gameState.left_hand_equip_type_change_requested_over_frames = 0;
-        }
+        spreadWeaponDetectionOverFrames(gameState);
 
         equipWeaponOnDpadMenuExit(newXRBtnHold, gameState, dt);
 
@@ -996,17 +1067,17 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         }
         
         // Hand-specific input
-        handleLeftHandInGameInput(newXRBtnHold, inputs, gameState, leftGesture, 
+        processLeftHandInGameInput(newXRBtnHold, inputs, gameState, leftGesture, 
                                    leftJoystickDir, leftStickSource, rightStickSource, now, dt);
-        handleRightHandInGameInput(newXRBtnHold, inputs, gameState, rightGesture, rightStickSource,
+        processRightHandInGameInput(newXRBtnHold, inputs, gameState, rightGesture, rightStickSource,
                                     rightJoystickDir, now);
         
         // Trigger handling
-        handleLeftTriggerBindings(newXRBtnHold, inputs, gameState, leftGesture);
-        handleRightTriggerBindings(newXRBtnHold, inputs, gameState, rightGesture);
+        processLeftTriggerBindings(newXRBtnHold, inputs, gameState, leftGesture);
+        processRightTriggerBindings(newXRBtnHold, inputs, gameState, rightGesture);
     }
     else {
-        handleMenuInput(newXRBtnHold, inputs, gameState, leftJoystickDir);
+        processMenuInput(newXRBtnHold, inputs, gameState, leftJoystickDir);
     }
 
     // Update rumble/haptics
@@ -1015,33 +1086,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     // sticks
     static VPADButtons oldXRStickHold = VPAD_BUTTON_NONE;
     VPADButtons newXRStickHold = VPAD_BUTTON_NONE;
-
-    // movement/navigation stick
-    vpadStatus.leftStick = { leftStickSource.currentState.x + vpadStatus.leftStick.x.getLE(), leftStickSource.currentState.y + vpadStatus.leftStick.y.getLE() };
-
-    if (leftStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_LEFT) && leftStickSource.currentState.x <= -HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_L_EMULATION_LEFT;
-    else if (leftStickSource.currentState.x >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_RIGHT) && leftStickSource.currentState.x >= HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_L_EMULATION_RIGHT;
-
-    if (leftStickSource.currentState.y <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_DOWN) && leftStickSource.currentState.y <= -HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_L_EMULATION_DOWN;
-    else if (leftStickSource.currentState.y >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_UP) && leftStickSource.currentState.y >= HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_L_EMULATION_UP;
-
-    vpadStatus.rightStick = {rightStickSource.currentState.x + vpadStatus.rightStick.x.getLE(), rightStickSource.currentState.y + vpadStatus.rightStick.y.getLE()};
-
-    if (rightStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_LEFT) && rightStickSource.currentState.x <= -HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_R_EMULATION_LEFT;
-    else if (rightStickSource.currentState.x >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_RIGHT) && rightStickSource.currentState.x >= HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_R_EMULATION_RIGHT;
-
-    if (rightStickSource.currentState.y <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_DOWN) && rightStickSource.currentState.y <= -HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_R_EMULATION_DOWN;
-    else if (rightStickSource.currentState.y >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_UP) && rightStickSource.currentState.y >= HOLD_THRESHOLD))
-        newXRStickHold |= VPAD_STICK_R_EMULATION_UP;
-
-    oldXRStickHold = newXRStickHold;
+    processJoystickInput(oldXRStickHold, newXRStickHold, vpadStatus, leftStickSource, rightStickSource);
 
     // calculate new hold, trigger and release
     uint32_t combinedHold = (vpadStatus.hold.getLE() | (newXRBtnHold | newXRStickHold));
@@ -1067,33 +1112,10 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     // set r3 to 1 for hooked VPADRead function to return success
     hCPU->gpr[3] = 1;
 
-    // (re)set values for next frame
-    gameState.previous_button_hold = newXRBtnHold;
-    gameState.was_in_game = gameState.in_game;
-    if (gameState.in_game) {
-        gameState.has_something_in_right_hand = false;                    // updated in hook_ChangeWeaponMtx
-        gameState.has_something_in_left_hand = false;                     // updated in hook_ChangeWeaponMtx
-        gameState.is_throwable_object_held = false;                       // updated in hook_ChangeWeaponMtx
-        gameState.left_hand_previous_frame_equip_type = gameState.left_hand_current_equip_type;   // use the previous values if no new values are written from hook_ChangeWeaponMtx this frame
-        gameState.right_hand_previous_frame_equip_type = gameState.right_hand_current_equip_type; // use the previous values if no new values are written from hook_ChangeWeaponMtx this frame
-        gameState.left_hand_current_equip_type = EquipType::None;                      // updated in hook_ChangeWeaponMtx
-        gameState.right_hand_current_equip_type = EquipType::None;                     // updated in hook_ChangeWeaponMtx
-        gameState.left_equip_type_set_this_frame = false;                 // updated in hook_ChangeWeaponMtx
-        gameState.right_equip_type_set_this_frame = false;                // updated in hook_ChangeWeaponMtx
-    }
-    
-    // Pull gesture
-    gameState.right_hand_was_over_left_shoulder_slot = isHandOverLeftShoulderSlot(rightGesture);
-    gameState.right_hand_was_over_right_shoulder_slot = isHandOverRightShoulderSlot(rightGesture);
-    gameState.right_hand_was_over_left_waist_slot = isHandOverLeftWaistSlot(rightGesture);
-    gameState.left_hand_was_over_left_shoulder_slot = isHandOverLeftShoulderSlot(leftGesture);
-    gameState.left_hand_was_over_right_shoulder_slot = isHandOverRightShoulderSlot(leftGesture);
-    gameState.left_hand_was_over_left_waist_slot = isHandOverLeftWaistSlot(leftGesture);
+    updatePreviousValues(gameState, newXRBtnHold, leftGesture, rightGesture, inputs.shared.inputTime);
 
     VRManager::instance().XR->m_gameState.store(gameState);
     VRManager::instance().XR->m_input.store(inputs);
-
-    prev_sample = inputs.shared.inputTime;
 }
 
 
