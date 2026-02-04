@@ -117,10 +117,8 @@ public:
         bool was_in_game = false;
         bool map_open = false; // map = true, inventory = false
         bool dpad_menu_open_requested = false;
-        bool dpad_menu_open = false;
         bool was_dpad_menu_open = false;
-        bool rune_menu_open = false;
-        Direction last_dpad_menu_open = Direction::None;
+        EquipType last_dpad_menu_open = EquipType::None;
 
         bool prevent_inputs = false;
         std::chrono::steady_clock::time_point prevent_inputs_time;
@@ -135,11 +133,14 @@ public:
         bool left_hand_was_over_right_shoulder_slot = false;
         bool left_hand_was_over_left_waist_slot = false;
 
-        EquipType right_equip_type = EquipType::None;
-        EquipType left_equip_type = EquipType::None;
-        EquipType previous_right_equip_type = EquipType::None;
-        EquipType previous_left_equip_type = EquipType::None;
-        EquipType last_item_held = EquipType::None;
+        EquipType right_hand_current_equip_type = EquipType::None;
+        EquipType left_hand_current_equip_type = EquipType::None;
+        EquipType right_hand_previous_frame_equip_type = EquipType::None;
+        EquipType left_hand_previous_frame_equip_type = EquipType::None;
+        EquipType last_equip_type_held = EquipType::None;
+        bool dpad_menu_selection_already_equipped = false;
+        bool rune_need_reequip = false;
+        float rune_reequip_timer = 0.0f;
         int right_hand_equip_type_change_requested_over_frames = 0;
         int left_hand_equip_type_change_requested_over_frames = 0;
         bool has_something_in_left_hand = false;
