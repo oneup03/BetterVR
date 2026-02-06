@@ -33,6 +33,8 @@ static void Settings_ReadLine(ImGuiContext*, ImGuiSettingsHandler*, void* entry,
     if (sscanf(line, "PerformanceOverlay=%d", &i_val) == 1) { s->performanceOverlay.store(i_val); return; }
     if (sscanf(line, "PerformanceOverlayFrequency=%d", &i_val) == 1) { s->performanceOverlayFrequency.store(i_val); return; }
     if (sscanf(line, "TutorialPromptShown=%d", &i_val) == 1) { s->tutorialPromptShown.store(i_val); return; }
+    if (sscanf(line, "AxisThreshold=%f", &f_val) == 1) { s->axisThreshold.store(f_val); return; }
+    if (sscanf(line, "StickDeadzone=%f", &f_val) == 1) { s->stickDeadzone.store(f_val); return; }
 }
 
 static void Settings_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) {
@@ -53,6 +55,8 @@ static void Settings_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handler, 
     buf->appendf("PerformanceOverlay=%d\n", (int)s.performanceOverlay.load());
     buf->appendf("PerformanceOverlayFrequency=%d\n", s.performanceOverlayFrequency.load());
     buf->appendf("TutorialPromptShown=%d\n", (int)s.tutorialPromptShown.load());
+    buf->appendf("AxisThreshold=%.3f\n", s.axisThreshold.load());
+    buf->appendf("StickDeadzone=%.3f\n", s.stickDeadzone.load());
     buf->appendf("\n");
 }
 

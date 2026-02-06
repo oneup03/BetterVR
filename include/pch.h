@@ -525,6 +525,10 @@ struct ModSettings {
     std::atomic_uint32_t performanceOverlayFrequency = 90;
     std::atomic_bool tutorialPromptShown = false;
 
+    // Input settings
+    std::atomic<float> axisThreshold = 0.5f;
+    std::atomic<float> stickDeadzone = 0.15f;
+
     CameraMode GetCameraMode() const { return cameraMode; }
 
     PlayMode GetPlayMode() const { return playMode; }
@@ -567,6 +571,8 @@ struct ModSettings {
         std::format_to(std::back_inserter(buffer), " - Show Black Bars for Third-Person Cutscenes: {}\n", UseBlackBarsForCutscenes() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Performance Overlay: {}\n", performanceOverlay == 0 ? "Disabled" : (performanceOverlay == 1 ? "2D Only" : "Enabled"));
         std::format_to(std::back_inserter(buffer), " - Performance Overlay Frequency: {} Hz\n", performanceOverlayFrequency.load());
+        std::format_to(std::back_inserter(buffer), " - Axis Threshold: {}\n", axisThreshold.load());
+        std::format_to(std::back_inserter(buffer), " - Stick Deadzone: {}\n", stickDeadzone.load());
         return buffer;
     }
 

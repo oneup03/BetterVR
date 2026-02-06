@@ -1,4 +1,4 @@
-﻿#include "hooking/cemu_hooks.h"
+#include "hooking/cemu_hooks.h"
 #include "hooking/entity_debugger.h"
 #include "instance.h"
 #include "utils/vulkan_utils.h"
@@ -830,6 +830,28 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     else {
                         ImGui::Text("");
                     }
+
+                    ImGui::Spacing();
+                    ImGui::Separator();
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+                    ImGui::Text("Input");
+                    ImGui::PopStyleColor();
+
+                    float deadzone = settings.stickDeadzone;
+                    DrawSettingRow("Stick Deadzone", [&]() {
+                        if (ImGui::SliderFloat("##StickDeadzone", &deadzone, 0.0f, 0.5f, "%.2f")) {
+                            settings.stickDeadzone = deadzone;
+                            changed = true;
+                        }
+                    });
+
+                    float threshold = settings.axisThreshold;
+                    DrawSettingRow("Axis Threshold", [&]() {
+                        if (ImGui::SliderFloat("##AxisThreshold", &threshold, 0.1f, 0.9f, "%.2f")) {
+                            settings.axisThreshold = threshold;
+                            changed = true;
+                        }
+                    });
 
                     if (ImGui::CollapsingHeader("Advanced Settings")) {
                         bool crop16x9 = settings.cropFlatTo16x9;

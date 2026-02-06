@@ -181,6 +181,8 @@ public:
             }
             return false;
         }
+
+        return false;
     }
 
     static bool IsThirdPerson() {
