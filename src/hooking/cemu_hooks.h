@@ -303,4 +303,16 @@ public:
             return result;
         }
     }
+
+    template <typename T>
+    static void setMemory(uint64_t offset, T value) {
+        if constexpr (is_BEType_v<T>) {
+            writeMemory(offset, &value);
+        }
+        else {
+            BEType<T> beValue = value;
+            writeMemory(offset, &beValue);
+        }
+    }
 };
+

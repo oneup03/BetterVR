@@ -361,6 +361,14 @@ struct BEMatrix34 : BETypeCompatible {
 
     BEMatrix34() = default;
 
+    BEMatrix34(const glm::fvec3& pos, const glm::fquat& quat) {
+        setPos(pos);
+        setRotLE(quat);
+    }
+    BEMatrix34(const glm::mat4x3& mat) {
+        setLEMatrix(mat);
+    }
+
     float DistanceSq(const BEMatrix34& other) const {
         return (pos_x.getLE() - other.pos_x.getLE()) * (pos_x.getLE() - other.pos_x.getLE()) + (pos_y.getLE() - other.pos_y.getLE()) * (pos_y.getLE() - other.pos_y.getLE()) + (pos_z.getLE() - other.pos_z.getLE()) * (pos_z.getLE() - other.pos_z.getLE());
     }

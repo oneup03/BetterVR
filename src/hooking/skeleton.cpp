@@ -102,7 +102,7 @@ public:
         return glm::inverse(parentWorldMatrix) * targetWorldMatrix;
     }
 
-    void SolveTwoBoneIK(int rootIdx, int midIdx, int endIdx, const glm::vec3& targetPos, const glm::vec3& poleVector, float boneForwardSign) {
+    void SolveTwoBoneIK(int rootIdx, int midIdx, int endIdx, const glm::vec3& targetPos, const glm::vec3& poleVector, float boneForwardSign, float upperArmStretchBias = 0.75f) {
         if (rootIdx < 0 || rootIdx >= m_bones.size() ||
             midIdx < 0 || midIdx >= m_bones.size() ||
             endIdx < 0 || endIdx >= m_bones.size()) {
@@ -122,15 +122,25 @@ public:
         glm::vec3 rootPos = glm::vec3(parentWorld * glm::vec4(rootBone.localPos, 1.0f));
 
         // get lengths
-        float l1 = glm::length(midBone.localPos);
-        float l2 = glm::length(endBone.localPos);
+        float l1_orig = glm::length(midBone.localPos);
+        float l2_orig = glm::length(endBone.localPos);
+        float l1 = l1_orig;
+        float l2 = l2_orig;
+        float totalLength = l1 + l2;
 
         // solve IK
         glm::vec3 dir = targetPos - rootPos;
         float dist = glm::length(dir);
 
-        // clamp distance
+        // weighted stretch: upper arm absorbs more of the extra distance
         float epsilon = 0.001f;
+        if (dist > totalLength - epsilon) {
+            float extra = dist - totalLength + epsilon;
+            l1 += extra * upperArmStretchBias;
+            l2 += extra * (1.0f - upperArmStretchBias);
+        }
+
+        // clamp distance
         dist = glm::clamp(dist, epsilon, l1 + l2 - epsilon);
 
         // law of cosines for angle at shoulder (alpha)
@@ -160,13 +170,13 @@ public:
         glm::vec3 y2 = glm::cross(z2, x2);
         glm::mat3 rot2World = glm::mat3(x2, -y2, -z2);
 
-        // convert to local space
+        // convert to local space, stretching the upper arm position more
         glm::mat4 arm1Local = glm::inverse(parentWorld) * glm::mat4(rot1World);
-        arm1Local[3] = glm::vec4(rootBone.localPos, 1.0f); // restore translation
+        arm1Local[3] = glm::vec4(rootBone.localPos, 1.0f);
 
         glm::mat4 arm1World = parentWorld * arm1Local;
         glm::mat4 arm2Local = glm::inverse(arm1World) * glm::mat4(rot2World);
-        arm2Local[3] = glm::vec4(midBone.localPos, 1.0f); // restore translation
+        arm2Local[3] = glm::vec4(midBone.localPos * (l1 / l1_orig), 1.0f);
 
         // update skeleton
         rootBone.localMatrix = arm1Local;
@@ -265,52 +275,39 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
     const auto modelName = getMemory<sead::FixedSafeString100>(gsysModelPtr + 0x128);
     if (modelName.getLE() != "GameROMPlayer") return;
 
-    // get bone data
     std::string boneName((char*)(s_memoryBaseAddress + boneNamePtr));
     const bool isLeft = boneName.ends_with("_L");
     const OpenXR::EyeSide side = isLeft ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
 
+    // helpers to write back matrix and scale
+    auto writeBoneMatrix = [&](const glm::mat4x3& mtx, const glm::fvec3& scale) {
+        BEMatrix34 m{ mtx };
+        setMemory(matrixPtr, m);
+        setMemory(scalePtr, scale);
+    };
+    auto writeBoneQuat = [&](const glm::vec3& pos, const glm::quat& rot, const glm::fvec3& scale) {
+        BEMatrix34 m{ pos, rot };
+        setMemory(matrixPtr, m);
+        setMemory(scalePtr, scale);
+    };
 
     if (IsThirdPerson()) {
-        // head bones are set to 0.05, this just sets them back
         if (isFaceBone(boneName)) {
-            BEVec3 finalScale;
-            finalScale = glm::fvec3(1.0f);
-            writeMemory(scalePtr, &finalScale);
+            setMemory(scalePtr, glm::fvec3(1.0f));
         }
         return;
     }
 
-    // reset face bones so they don't react to vr-driven poses
-    if (isFaceBone(boneName)) {
-        BEMatrix34 finalMtx;
-        finalMtx.setPos(glm::fvec3());
-        finalMtx.setRotLE(glm::identity<glm::fquat>());
-        writeMemory(matrixPtr, &finalMtx);
 
-        BEVec3 finalScale;
-        finalScale = glm::fvec3(0.05);
-        writeMemory(scalePtr, &finalScale);
+    if (isFaceBone(boneName)) {
+        writeBoneQuat(glm::fvec3(), glm::identity<glm::fquat>(), glm::fvec3(0.05f));
         return;
     }
 
-    // get bone position data
-    glm::mat4x3 gameMtx = getMemory<BEMatrix34>(matrixPtr).getLEMatrix();
-    glm::vec3 bonePos = gameMtx[3];
-    glm::quat boneRot = glm::normalize(glm::quat_cast(glm::mat3(gameMtx)));
     glm::fvec3 boneScale = getMemory<BEVec3>(scalePtr).getLE();
-
-    // get player data
     const glm::fmat4 playerMtx4 = glm::fmat4(getMemory<BEMatrix34>(s_playerMtxAddress).getLEMatrix());
-    const glm::fmat4 playerPosMtx = glm::translate(glm::fmat4(1.0f), glm::fvec3(playerMtx4[3]));
+    const glm::mat4 cameraMtx = s_lastCameraMtx;
 
-    // get camera data
-    glm::mat4 cameraMtx = s_lastCameraMtx;
-    glm::mat4 cameraPositionOnlyMtx = glm::translate(glm::identity<glm::fmat4>(), glm::fvec3(cameraMtx[3]));
-    glm::fquat cameraQuat = glm::quat_cast(cameraMtx);
-    glm::mat4 cameraRotationOnlyMtx = glm::mat4_cast(cameraQuat);
-
-    // get vr controller position and rotation
     const OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
     if (!inputs.shared.pose[side].isActive)
         return;
@@ -318,199 +315,126 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
     const auto& pose = inputs.shared.poseLocation[side];
     glm::fvec3 controllerPos = glm::fvec3();
     glm::fquat controllerRot = glm::identity<glm::fquat>();
-    if (pose.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) {
+    if (pose.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
         controllerPos = ToGLM(pose.pose.position);
-    }
-    if (pose.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) {
+    if (pose.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
         controllerRot = ToGLM(pose.pose.orientation);
-    }
 
-    // initialize skeleton and hand correction rotations
+    // one-time skeleton and hand correction initialization
     if (!s_skeletonParsed) {
         s_skeleton.Parse(SKELETON_DATA);
         s_skeletonParsed = true;
 
-        glm::fquat wristRotationHardcodedLeft = glm::identity<glm::fquat>();
-        wristRotationHardcodedLeft *= glm::angleAxis(glm::radians(90.0f), glm::fvec3(0, 1, 0));
-        wristRotationHardcodedLeft *= glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1));
-        wristRotationHardcodedLeft *= glm::angleAxis(glm::radians(-45.0f), glm::fvec3(1, 0, 0));
-        wristRotationHardcodedLeft *= glm::angleAxis(glm::radians(45.0f), glm::fvec3(1, 0, 0));
+        // left: 90 Y -> -90 Z -> 30 Z
+        glm::fquat wristL = glm::identity<glm::fquat>();
+        wristL *= glm::angleAxis(glm::radians(90.0f), glm::fvec3(0, 1, 0));
+        wristL *= glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1));
+        wristL *= glm::angleAxis(glm::radians(30.0f), glm::fvec3(0, 0, 1));
 
-        glm::fquat wristRotationHardcodedRight = glm::identity<glm::fquat>();
-        wristRotationHardcodedRight *= glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1));
-        wristRotationHardcodedRight *= glm::angleAxis(glm::radians(-180.0f), glm::fvec3(0, 1, 0));
-        wristRotationHardcodedRight *= glm::angleAxis(glm::radians(270.0f), glm::fvec3(1, 0, 0));
+        // right: -90 Z -> -180 Y -> 270 X -> 30 Z tweak
+        glm::fquat wristR = glm::identity<glm::fquat>();
+        wristR *= glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1));
+        wristR *= glm::angleAxis(glm::radians(-180.0f), glm::fvec3(0, 1, 0));
+        wristR *= glm::angleAxis(glm::radians(270.0f), glm::fvec3(1, 0, 0));
+        wristR *= glm::angleAxis(glm::radians(30.0f), glm::fvec3(0, 0, 1));
 
-        // slightly tweak it for a nicer alignment of the virtual hands
-        wristRotationHardcodedLeft *= glm::angleAxis(glm::radians(30.0f), glm::fvec3(0, 0, 1));
-        wristRotationHardcodedRight *= glm::angleAxis(glm::radians(30.0f), glm::fvec3(0, 0, 1));
-
-        s_handCorrectionRotationLeft = glm::mat4_cast(wristRotationHardcodedLeft);
-        s_handCorrectionRotationRight = glm::mat4_cast(wristRotationHardcodedRight);
+        s_handCorrectionRotationLeft = glm::mat4_cast(wristL);
+        s_handCorrectionRotationRight = glm::mat4_cast(wristR);
     }
 
     int boneIndex = s_skeleton.GetBoneIndex(boneName);
-    if (boneIndex == -1) {
+    if (boneIndex == -1)
         return;
-    }
-    Bone* bone = s_skeleton.GetBone(boneIndex);
 
-    glm::mat4 calculatedLocalMat = bone->localMatrix;
+    // compute the controller target in model space
+    auto calcControllerTargetModel = [&]() -> glm::mat4 {
+        glm::mat4 handCorrectionMtx = isLeft ? s_handCorrectionRotationLeft : s_handCorrectionRotationRight;
+        glm::mat4 controllerMat = glm::translate(glm::identity<glm::mat4>(), controllerPos) * glm::mat4_cast(controllerRot) * handCorrectionMtx;
+        glm::mat4 targetWorld = cameraMtx * controllerMat;
+
+        const char* weaponName = isLeft ? "Weapon_L" : "Weapon_R";
+        if (Bone* weapon = s_skeleton.GetBone(weaponName)) {
+            glm::vec3 weaponOffset = glm::vec3(weapon->localMatrix[3]);
+            targetWorld = targetWorld * glm::translate(glm::identity<glm::mat4>(), -weaponOffset);
+        }
+
+        return glm::inverse(playerMtx4) * targetWorld;
+    };
+
+    glm::mat4 calculatedLocalMat = s_skeleton.GetBone(boneIndex)->localMatrix;
 
     // override the root transform so the body aligns with the headset yaw
     if (boneName == "Skl_Root") {
         auto headsetPose = VRManager::instance().XR->GetRenderer()->GetMiddlePose();
-        glm::mat4 s_headsetMtx = headsetPose.value_or(ToMat4(glm::fvec3(0)));
+        glm::mat4 headsetMtx = headsetPose.value_or(ToMat4(glm::fvec3(0)));
 
-        // calculate eye offset from eyeball bones
+        // calculate eye offset from eyeball bones (once)
         static glm::vec3 eyeOffset = glm::vec3(0.0f);
         static bool offsetCalculated = false;
         if (!offsetCalculated) {
             Bone* eyeL = s_skeleton.GetBone("Eyeball_L");
             Bone* eyeR = s_skeleton.GetBone("Eyeball_R");
             Bone* sklRoot = s_skeleton.GetBone("Skl_Root");
-
             if (eyeL && eyeR && sklRoot) {
                 glm::vec3 eyePos = (glm::vec3(eyeL->worldMatrix[3]) + glm::vec3(eyeR->worldMatrix[3])) * 0.5f;
-                glm::vec3 rootPos = glm::vec3(sklRoot->worldMatrix[3]);
-                eyeOffset = eyePos - rootPos;
+                eyeOffset = eyePos - glm::vec3(sklRoot->worldMatrix[3]);
                 offsetCalculated = true;
             }
         }
 
-        // transform headset matrix to world space
-        glm::mat4 headsetWorld = cameraMtx * s_headsetMtx;
+        // headset in model space
+        glm::mat4 headsetModel = glm::inverse(playerMtx4) * cameraMtx * headsetMtx;
 
-        // transform to model space (skeleton root space)
-        glm::mat4 headsetModel = glm::inverse(playerMtx4) * headsetWorld;
-
-        // extract rotation
+        // extract yaw-only rotation (twist around Y)
         glm::quat headsetRot = glm::quat_cast(headsetModel);
-
-        // extract yaw (twist around y)
-        glm::vec3 axis(0, 1, 0);
-        glm::vec3 r(headsetRot.x, headsetRot.y, headsetRot.z);
-        float dot = glm::dot(r, axis);
-        glm::vec3 proj = axis * dot;
-        glm::quat yawRot(headsetRot.w, proj.x, proj.y, proj.z);
-
-        // normalize
+        float yProj = glm::dot(glm::vec3(headsetRot.x, headsetRot.y, headsetRot.z), glm::vec3(0, 1, 0));
+        glm::quat yawRot(headsetRot.w, 0, yProj, 0);
         float lenSq = glm::dot(yawRot, yawRot);
-        if (lenSq > 0.000001f) {
-            yawRot = yawRot * (1.0f / sqrtf(lenSq));
-        }
-        else {
-            yawRot = glm::identity<glm::quat>();
-        }
+        yawRot = (lenSq > 0.000001f) ? yawRot * (1.0f / sqrtf(lenSq)) : glm::identity<glm::quat>();
 
         // fix body inversion
         yawRot = yawRot * glm::angleAxis(glm::radians(180.0f), glm::vec3(0, 1, 0));
 
-        // calculate target position
-        // headset position in model space
-        glm::vec3 headsetPosModel = glm::vec3(headsetModel[3]);
-        // we want: rootpos + yawrot * eyeoffset = headsetpos
-        // so: rootpos = headsetpos - yawrot * eyeoffset
-        glm::vec3 targetPos = headsetPosModel - (yawRot * eyeOffset);
+        // position the root so that yawRot * eyeOffset lands at the headset position
+        glm::vec3 targetPos = glm::vec3(headsetModel[3]) - (yawRot * eyeOffset) + (yawRot * s_manualBodyOffset);
 
-        // apply manual offset
-        targetPos += yawRot * s_manualBodyOffset;
-
-        // update s_skeleton so that children bones (hands) are calculated correctly relative to the new root
+        // update skeleton for children (hands)
         if (Bone* rootBone = s_skeleton.GetBone("Skl_Root")) {
             rootBone->localMatrix = glm::translate(glm::identity<glm::mat4>(), targetPos) * glm::mat4_cast(yawRot);
             s_skeleton.UpdateWorldMatrices();
         }
 
-        BEMatrix34 finalMtx;
-        finalMtx.setPos(targetPos);
-        finalMtx.setRotLE(yawRot);
-        writeMemory(matrixPtr, &finalMtx);
-
-        BEVec3 finalScale;
-        finalScale = boneScale;
-        writeMemory(scalePtr, &finalScale);
+        writeBoneQuat(targetPos, yawRot, boneScale);
         return;
     }
 
-    // solve upper arm ik so the hands reach the vr controllers
+    // solve upper arm IK so the arms reach the VR controllers
     if (boneName == "Arm_1_L" || boneName == "Arm_1_R" ||
         boneName == "Elbow_L" || boneName == "Elbow_R" ||
         boneName == "Wrist_Assist_L" || boneName == "Wrist_Assist_R") {
-        std::string arm1Name = isLeft ? "Arm_1_L" : "Arm_1_R";
-        std::string arm2Name = isLeft ? "Arm_2_L" : "Arm_2_R";
-        std::string wristName = isLeft ? "Wrist_L" : "Wrist_R";
-        std::string weaponName = isLeft ? "Weapon_L" : "Weapon_R";
 
-        int arm1Index = s_skeleton.GetBoneIndex(arm1Name);
-        int arm2Index = s_skeleton.GetBoneIndex(arm2Name);
-        int wristIndex = s_skeleton.GetBoneIndex(wristName);
-        Bone* weapon = s_skeleton.GetBone(weaponName);
+        int arm1Index = s_skeleton.GetBoneIndex(isLeft ? "Arm_1_L" : "Arm_1_R");
+        int arm2Index = s_skeleton.GetBoneIndex(isLeft ? "Arm_2_L" : "Arm_2_R");
+        int wristIndex = s_skeleton.GetBoneIndex(isLeft ? "Wrist_L" : "Wrist_R");
 
         if (arm1Index != -1 && arm2Index != -1 && wristIndex != -1) {
-            glm::mat4 handCorrectionMtx = isLeft ? s_handCorrectionRotationLeft : s_handCorrectionRotationRight;
+            glm::vec3 targetPos = glm::vec3(calcControllerTargetModel()[3]);
 
-            // calculate target wrist world position
-            glm::mat4 controllerMat = glm::translate(glm::identity<glm::mat4>(), controllerPos) * glm::mat4_cast(controllerRot) * handCorrectionMtx;
-            glm::mat4 targetWorld = cameraMtx * controllerMat;
-
-            if (weapon) {
-                glm::vec3 weaponOffset = glm::vec3(weapon->localMatrix[3]);
-                targetWorld = targetWorld * glm::translate(glm::identity<glm::mat4>(), -weaponOffset);
-            }
-
-            // convert targetWorld to model space
-            glm::mat4 targetModel = glm::inverse(playerMtx4) * targetWorld;
-            glm::vec3 targetPos = glm::vec3(targetModel[3]);
-
-            // pole vector (elbow direction)
-            // left: left-down-back, right: right-down-back
+            // pole vector (elbow hint): left-down-back / right-down-back, rotated by body yaw
             glm::vec3 poleDir = isLeft ? glm::vec3(1.0f, -1.0f, -0.5f) : glm::vec3(-1.0f, -1.0f, -0.5f);
+            if (Bone* rootBone = s_skeleton.GetBone("Skl_Root"))
+                poleDir = glm::quat_cast(rootBone->localMatrix) * poleDir;
 
-            // rotate pole vector by body rotation (Skl_Root)
-            if (Bone* rootBone = s_skeleton.GetBone("Skl_Root")) {
-                glm::quat rootRot = glm::quat_cast(rootBone->localMatrix);
-                poleDir = rootRot * poleDir;
-            }
-
-            float forwardSign = isLeft ? 1.0f : -1.0f;
-
-            s_skeleton.SolveTwoBoneIK(arm1Index, arm2Index, wristIndex, targetPos, poleDir, forwardSign);
-
+            s_skeleton.SolveTwoBoneIK(arm1Index, arm2Index, wristIndex, targetPos, poleDir, isLeft ? 1.0f : -1.0f);
             calculatedLocalMat = s_skeleton.GetBone(boneIndex)->localMatrix;
         }
     }
 
-    // align the wrist (and its weapon) with the controller pose.
-    if (boneName == "Wrist_L" || boneName == "Wrist_R") {
-        glm::mat4 handCorrectionMtx = isLeft ? s_handCorrectionRotationLeft : s_handCorrectionRotationRight;
-
-        // construct controller matrix in tracking space
-        glm::mat4 controllerMat = glm::translate(glm::identity<glm::mat4>(), controllerPos) * glm::mat4_cast(controllerRot) * handCorrectionMtx;
-
-        // transform to world space
-        // we treat the camera as the origin of the tracking space
-        glm::mat4 targetWorld = cameraMtx * controllerMat;
-
-        std::string weaponName = (boneName == "Wrist_L") ? "Weapon_L" : "Weapon_R";
-        if (Bone* weaponBone = s_skeleton.GetBone(weaponName)) {
-            glm::vec3 weaponOffset = glm::vec3(weaponBone->localMatrix[3]);
-            targetWorld = targetWorld * glm::translate(glm::identity<glm::mat4>(), -weaponOffset);
-        }
-
-        glm::mat4 targetModel = glm::inverse(playerMtx4) * targetWorld;
-
-        // calculate local matrix to reach target model matrix
-        // note: this assumes the parent bones are in the pose defined by SKELETON_DATA
-        calculatedLocalMat = s_skeleton.CalculateLocalMatrixFromWorld(boneIndex, targetModel);
+    // align the wrist and wrist assist directly with the controller pose
+    if (boneName == "Wrist_L" || boneName == "Wrist_R" ||
+        boneName == "Wrist_Assist_L" || boneName == "Wrist_Assist_R") {
+        calculatedLocalMat = s_skeleton.CalculateLocalMatrixFromWorld(boneIndex, calcControllerTargetModel());
     }
 
-    glm::mat4x3 finalMtx = glm::mat4x3(calculatedLocalMat);
-    BEMatrix34 finalMatrix;
-    finalMatrix.setLEMatrix(finalMtx);
-    writeMemory(matrixPtr, &finalMatrix);
-
-    BEVec3 finalScale;
-    finalScale = boneScale;
-    writeMemory(scalePtr, &finalScale);
+    writeBoneMatrix(glm::mat4x3(calculatedLocalMat), boneScale);
 }
