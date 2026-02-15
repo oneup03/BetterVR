@@ -118,11 +118,13 @@ RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, VkExtent2D fbRes, V
 
     ImFontConfig iconCfg{};
     iconCfg.MergeMode = true;
+    iconCfg.PixelSnapH = true;
     iconCfg.GlyphMinAdvanceX = 16.0f;
+    iconCfg.GlyphOffset = ImVec2(0.0f, 2.0f);
     iconCfg.OversampleH = 8;
     iconCfg.OversampleV = 8;
     iconCfg.FontDataOwnedByAtlas = false;
-    static const ImWchar icon_ranges[] = { ICON_MIN_KI, ICON_MAX_KI, 0 };
+    static const ImWchar icon_ranges[] = { ICON_MIN_KI, ICON_MAX_16_KI, 0 };
     iconCfg.GlyphRanges = icon_ranges;
     ImFont* iconFont = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedTTF(kenney_compressed_data, kenney_compressed_size, 16.0f, &iconCfg);
     if (iconFont == nullptr || textFont == nullptr) {
