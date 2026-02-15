@@ -2,6 +2,7 @@
 #include "imgui_internal.h"
 #include "instance.h"
 #include "hooking/entity_debugger.h"
+#include "utils/mod_settings.h"
 
 ModSettings g_settings = {};
 
@@ -17,47 +18,62 @@ static void* Settings_ReadOpen(ImGuiContext*, ImGuiSettingsHandler*, const char*
 
 static void Settings_ReadLine(ImGuiContext*, ImGuiSettingsHandler*, void* entry, const char* line) {
     auto* s = (ModSettings*)entry;
-    int i_val;
-    float f_val;
-    if (sscanf(line, "CameraMode=%d", &i_val) == 1)      { s->cameraMode.store((CameraMode)i_val); return; }
-    if (sscanf(line, "PlayMode=%d", &i_val) == 1)        { s->playMode.store((PlayMode)i_val); return; }
-    if (sscanf(line, "ThirdPlayerDistance=%f", &f_val) == 1) { s->thirdPlayerDistance.store(f_val); return; }
-    if (sscanf(line, "CutsceneCameraMode=%d", &i_val) == 1) { s->cutsceneCameraMode.store((EventMode)i_val); return; }
-    if (sscanf(line, "UseBlackBarsForCutscenes=%d", &i_val) == 1) { s->useBlackBarsForCutscenes.store(i_val); return; }
-    if (sscanf(line, "PlayerHeightOffset=%f", &f_val) == 1) { s->playerHeightOffset.store(f_val); return; }
-    if (sscanf(line, "LeftHanded=%d", &i_val) == 1)      { s->leftHanded.store(i_val); return; }
-    if (sscanf(line, "UiFollowsGaze=%d", &i_val) == 1)   { s->uiFollowsGaze.store(i_val); return; }
-    if (sscanf(line, "CropFlatTo16x9=%d", &i_val) == 1)  { s->cropFlatTo16x9.store(i_val); return; }
-    if (sscanf(line, "EnableDebugOverlay=%d", &i_val) == 1) { s->enableDebugOverlay.store(i_val); return; }
-    if (sscanf(line, "BuggyAngularVelocity=%d", &i_val) == 1) { s->buggyAngularVelocity.store((AngularVelocityFixerMode)i_val); return; }
-    if (sscanf(line, "PerformanceOverlay=%d", &i_val) == 1) { s->performanceOverlay.store(i_val); return; }
-    if (sscanf(line, "PerformanceOverlayFrequency=%d", &i_val) == 1) { s->performanceOverlayFrequency.store(i_val); return; }
-    if (sscanf(line, "TutorialPromptShown=%d", &i_val) == 1) { s->tutorialPromptShown.store(i_val); return; }
-    if (sscanf(line, "AxisThreshold=%f", &f_val) == 1) { s->axisThreshold.store(f_val); return; }
-    if (sscanf(line, "StickDeadzone=%f", &f_val) == 1) { s->stickDeadzone.store(f_val); return; }
+    std::string_view lineView = line;
+    if (lineView.empty()) return;
+    // Remove leading whitespaces
+    lineView.remove_prefix(std::min(lineView.find_first_not_of(" \t"), lineView.size()));
+    if (line[0] == '#' || line[0] == ';') return; //ignore comments
+    size_t sepIndex = lineView.find_first_of('=');
+    if (sepIndex == std::string_view::npos) { //invalid string
+        Log::print<ERROR>("Failed to parse illegal option line \"{}\": Missing key-value separator \"=\"", line);
+        return;
+    }
+    std::string_view nameView = lineView.substr(0, sepIndex);
+    // Remove trailing whitespaces
+    nameView.remove_suffix(std::min(nameView.size() - nameView.find_last_not_of(" \t") - 1, nameView.size()));
+    if (nameView.empty()) {
+        Log::print<ERROR>("Failed to parse option line \"{}\": missing option key", line);
+        return;
+    }
+    std::string nameStr = std::string(nameView);
+    const char* name = nameStr.c_str();
+    auto options = s->GetOptions();
+    for (ModSettingBase* option : options) {
+        if (stricmp(option->name, name) == 0) {
+            std::string_view valueView = lineView.substr(sepIndex + 1, lineView.size() - sepIndex - 1);
+            // Remove leading whitespaces
+            valueView.remove_prefix(std::min(valueView.find_first_not_of(" \t"), valueView.size()));
+            // Remove trailing whitespaces
+            valueView.remove_suffix(std::min(valueView.size() - valueView.find_last_not_of(" \t") - 1, valueView.size()));
+            if (valueView.empty()) {
+                Log::print<ERROR>("Failed to parse option line \"{}\": missing value", line);
+                return;
+            }
+            std::string valueStr = std::string(valueView);
+            option->Deserialize(valueStr);
+            //Log::print<INFO>("Deserialized \"{}\" to \"{}\" from line \"{}\"", option->name, option->Serialize(), line);
+            return;
+        }
+    }
+    Log::print<ERROR>("Failed to parse option line \"{}\": Unknown option key \"{}\"", line, name);
 }
 
 static void Settings_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) {
     auto& s = GetSettings();
     buf->reserve(buf->size() + 1024);
     buf->appendf("[%s][Settings]\n", handler->TypeName);
-    buf->appendf("CameraMode=%d\n", (int)s.cameraMode.load());
-    buf->appendf("PlayMode=%d\n", (int)s.playMode.load());
-    buf->appendf("ThirdPlayerDistance=%.3f\n", s.thirdPlayerDistance.load());
-    buf->appendf("CutsceneCameraMode=%d\n", (int)s.cutsceneCameraMode.load());
-    buf->appendf("UseBlackBarsForCutscenes=%d\n", (int)s.useBlackBarsForCutscenes.load());
-    buf->appendf("PlayerHeightOffset=%.3f\n", s.playerHeightOffset.load());
-    buf->appendf("LeftHanded=%d\n", (int)s.leftHanded.load());
-    buf->appendf("UiFollowsGaze=%d\n", (int)s.uiFollowsGaze.load());
-    buf->appendf("CropFlatTo16x9=%d\n", (int)s.cropFlatTo16x9.load());
-    buf->appendf("EnableDebugOverlay=%d\n", (int)s.enableDebugOverlay.load());
-    buf->appendf("BuggyAngularVelocity=%d\n", (int)s.buggyAngularVelocity.load());
-    buf->appendf("PerformanceOverlay=%d\n", (int)s.performanceOverlay.load());
-    buf->appendf("PerformanceOverlayFrequency=%d\n", s.performanceOverlayFrequency.load());
-    buf->appendf("TutorialPromptShown=%d\n", (int)s.tutorialPromptShown.load());
-    buf->appendf("AxisThreshold=%.3f\n", s.axisThreshold.load());
-    buf->appendf("StickDeadzone=%.3f\n", s.stickDeadzone.load());
+    auto options = s.GetOptions();
+    for (ModSettingBase* option : options) {
+        std::string serialized = option->Serialize();
+        buf->appendf("%s=%s\n", option->name, serialized.c_str());
+    }
     buf->appendf("\n");
+    Log::print<INFO>("VR Settings Saved:\n{}", s.ToString());
+}
+
+static void Settings_ReadFinish(ImGuiContext* ctx, ImGuiSettingsHandler* handler) {
+    auto& s = GetSettings();
+    Log::print<INFO>("VR Settings Loaded:\n{}", s.ToString());
 }
 
 void InitSettings() {
@@ -66,6 +82,7 @@ void InitSettings() {
     ini_handler.TypeHash = ImHashStr("BetterVR");
     ini_handler.ReadOpenFn = Settings_ReadOpen;
     ini_handler.ReadLineFn = Settings_ReadLine;
+    ini_handler.ApplyAllFn = Settings_ReadFinish;
     ini_handler.WriteAllFn = Settings_WriteAll;
     ImGui::AddSettingsHandler(&ini_handler);
 }
@@ -160,12 +177,6 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
     }
     prevEnabledScreens = currentEnabledScreens;
 #endif
-
-    static bool logSettings = true;
-    if (logSettings) {
-        Log::print<INFO>("VR Settings:\n{}", g_settings.ToString());
-        logSettings = false;
-    }
 
     initCutsceneDefaultSettings(ppc_tableOfCutsceneEventSettings);
 }

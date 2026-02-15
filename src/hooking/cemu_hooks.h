@@ -1,5 +1,6 @@
 #pragma once
 #include "entity_debugger.h"
+#include "utils/mod_settings.h"
 
 
 class CemuHooks {
