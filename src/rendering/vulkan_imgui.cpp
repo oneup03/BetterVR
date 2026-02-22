@@ -2,6 +2,7 @@
 #include "hooking/entity_debugger.h"
 #include "instance.h"
 #include "utils/vulkan_utils.h"
+#include "utils/debug_draw.h"
 #include "vulkan.h"
 #include "utils/mod_settings.h"
 
@@ -409,6 +410,16 @@ void RND_Renderer::ImGuiOverlay::Render(long frameIdx, bool renderBackground) {
 
             ImGui::PopStyleVar();
             ImGui::PopStyleVar();
+
+            // Render world-space debug primitives clipped to the 3D view region.
+            // When cropped to 16:9, the 3D image fills the full window; otherwise
+            // it is centered with the VR headset's aspect ratio.
+            if (shouldCrop3DTo16_9) {
+                DebugDraw::instance().Render(glm::vec2(0.0f, 0.0f), glm::vec2(windowSize.x, windowSize.y));
+            }
+            else {
+                DebugDraw::instance().Render(glm::vec2(centerPos.x, centerPos.y), glm::vec2(squishedWindowSize.x, squishedWindowSize.y));
+            }
         }
     }
     else {
@@ -419,6 +430,8 @@ void RND_Renderer::ImGuiOverlay::Render(long frameIdx, bool renderBackground) {
         VRManager::instance().Hooks->m_entityDebugger->DrawEntityInspector();
         VRManager::instance().Hooks->DrawDebugOverlays();
     }
+
+
 
     if (((renderBackground && GetSettings().performanceOverlay == PerformanceOverlayMode::WINDOW_ONLY) || GetSettings().performanceOverlay == PerformanceOverlayMode::WINDOW_AND_VR) && !VRManager::instance().XR->m_isMenuOpen) {
         EntityDebugger::DrawFPSOverlay(renderer);

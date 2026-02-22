@@ -6,6 +6,7 @@
 #include <imgui_memory_editor.h>
 
 #include "implot3d_internal.h"
+#include "utils/debug_draw.h"
 
 std::mutex g_actorListMutex;
 std::unordered_map<uint32_t, std::pair<std::string, uint32_t>> s_knownActors;
@@ -191,6 +192,21 @@ void EntityDebugger::UpdateEntityMemory() {
         BEVec3 aabbMax = CemuHooks::getMemory<BEVec3>(actorPtr + offsetof(ActorWiiU, aabb.maxX));
         if (aabbMin.x.getLE() != 0.0f) {
             SetAABB(actorId, aabbMin.getLE(), aabbMax.getLE());
+        }
+
+        if (float distance = glm::distance(m_playerPos, mtx.getPos().getLE()); distance <= 100.0f) {
+            glm::fvec3 pos = mtx.getPos().getLE();
+            glm::fquat rot = mtx.getRotLE();
+
+            glm::fvec3 localMin = aabbMin.getLE();
+            glm::fvec3 localMax = aabbMax.getLE();
+            glm::fvec3 localCenter = (localMin + localMax) * 0.5f;
+            glm::fvec3 halfExtents = (localMax - localMin) * 0.5f;
+
+            // Transform local AABB center to world space
+            glm::fvec3 worldCenter = pos + glm::mat3_cast(rot) * localCenter;
+
+            DebugDraw::instance().Box(worldCenter, halfExtents, rot, IM_COL32(255, 255, 255, 255/10), 1.0f);
         }
 
         // uint32_t physicsMtxPtr = 0;

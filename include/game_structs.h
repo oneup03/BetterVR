@@ -588,6 +588,54 @@ struct Frustum {
     }
 };
 
+namespace ksys::phys {
+    enum GroundHit {
+        Player = 0x0,
+        Animal = 0x1,
+        NPC = 0x2,
+        Camera = 0x3,
+        AttackHitPlayer = 0x4,
+        AttackHitEnemy = 0x5,
+        Arrow = 0x6,
+        Bomb = 0x7,
+        Magnet = 0x8,
+        CameraBody = 0x9,
+        IK = 0xA,
+        Grudge = 0xB,
+        MovingTrolley = 0xC,
+        LineOfSight = 0xD,
+        Giant = 0xE,
+        HitAll = 0xF,
+        Ignore = 0x10,
+    };
+
+    struct RayCast {
+        BEVec3 from;
+        BEVec3 to;
+        BEType<uint32_t> groupHandlerPtr;
+        GroundHit groundHit;
+        uint8_t gap20[40];
+        char char48;
+        uint8_t gap49[7];
+        BEType<uint32_t> dword50;
+        BEType<uint32_t> dword54;
+        sead::PtrArrayImpl mLayerMasks;
+        BEType<uint32_t> dword64;
+        uint8_t byte68;
+        uint8_t byte69;
+        uint8_t byte6A;
+        sead::PtrArrayImpl mIgnoredGroups;
+        uint8_t gap78[16];
+        BEType<uint32_t> dword88;
+        BEType<uint32_t> dword8C;
+        BEType<uint32_t> __vftable;
+    };
+
+    struct RayCastBodyQuery : RayCast {
+        BEType<uint32_t> mHitRigidBody;
+    };
+}
+
 #pragma pack(pop)
 
 inline std::string contactLayerNames[] = {

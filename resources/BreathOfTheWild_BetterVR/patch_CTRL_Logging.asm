@@ -61,3 +61,9 @@ mr r29, r4
 blr
 
 0x0398865C = bla logModelAccessSearch
+
+; ======================================================================
+
+; get hit position
+
+0x034CA030 = ba import.coreinit.hook_VisualizeRayCastHits

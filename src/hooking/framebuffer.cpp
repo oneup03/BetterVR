@@ -2,6 +2,7 @@
 #include "instance.h"
 #include "layer.h"
 #include "utils/vulkan_utils.h"
+#include "utils/debug_draw.h"
 
 
 std::mutex lockImageResolutions;
@@ -256,6 +257,10 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkCommandBufferDispatc
                     imguiOverlay->Render(frameIdx, true);
                     imguiOverlay->Update();
                     imguiOverlay->DrawAndCopyToImage(commandBuffer, image, frameIdx);
+
+                    // Clear debug draw primitives now that both eyes have been rendered
+                    DebugDraw::instance().Clear();
+
                     returnToLayout();
                     return;
                 }

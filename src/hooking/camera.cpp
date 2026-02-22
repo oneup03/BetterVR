@@ -1,3 +1,4 @@
+#include "utils/debug_draw.h"
 #include "cemu_hooks.h"
 #include "instance.h"
 #include "rendering/openxr.h"
@@ -193,28 +194,6 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
     s_framesSinceLastCameraUpdate = 0;
 }
 
-// turns out this only does the minimap ui, and not the stamina UI :/
-//void CemuHooks::hook_UpdateUIPosition(PPCInterpreter_t* hCPU) {
-//    hCPU->instructionPointer = hCPU->sprNew.LR;
-//
-//    EyeSide side = hCPU->gpr[10] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
-//    uint32_t currFrameCounter = hCPU->gpr[11];
-//    uint32_t doesUIManagerExist = hCPU->gpr[3] != 0;
-//    uint32_t uiManagerInstance = hCPU->gpr[12];
-//
-//    if (!doesUIManagerExist) {
-//        return;
-//    }
-//
-//    BEVec3 playerPosCopy = getMemory<BEVec3>(uiManagerInstance + offsetof(UIManager, innerArray.uiPos1));
-//    BEVec3 playerMtxPositionCopy = getMemory<BEVec3>(uiManagerInstance + offsetof(UIManager, innerArray.uiPos2));
-//
-//    Log::print<INFO>("[{}] Updating UI position (frame = {}, playerPos = {}, playerMtxPos = {})", side, currFrameCounter, playerPosCopy, playerMtxPositionCopy);
-//
-//    writeMemory(uiManagerInstance + offsetof(UIManager, innerArray.uiPos1), &playerPosCopy);
-//    writeMemory(uiManagerInstance + offsetof(UIManager, innerArray.uiPos2), &playerMtxPositionCopy);
-//}
-
 void CemuHooks::hook_FixStaminaGaugeScreenPosition(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
@@ -397,7 +376,7 @@ static glm::mat4 calculateProjectionMatrix(float nearZ, float farZ, const XrFovf
 void CemuHooks::hook_GetRenderProjection(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    if (CemuHooks::UseBlackBarsDuringEvents()) {
+    if (UseBlackBarsDuringEvents()) {
         return;
     }
 
@@ -1093,3 +1072,49 @@ void CemuHooks::hook_PlayerLadderFix(PPCInterpreter_t* hCPU) {
         s_isLadderClimbing = 2;
     }
 }
+
+void CemuHooks::hook_VisualizeRayCastHits(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    if (VRManager::instance().XR->GetRenderer() == nullptr) {
+        return;
+    }
+
+    uint32_t rayCastResultPtr = hCPU->gpr[3];
+    glm::fvec3 raycastHitPos = getMemory<BEVec3>(hCPU->gpr[4]).getLE();
+
+    ksys::phys::RayCast rayCast = {};
+    readMemory(rayCastResultPtr, &rayCast);
+
+    glm::fvec3 rayStart = rayCast.from.getLE();
+    glm::fvec3 rayEnd = rayCast.to.getLE();
+    
+    rayStart.y += 0.5f;
+    rayEnd.y += 0.5f;
+    raycastHitPos.y += 0.5f;
+
+    DebugDraw::instance().Line(rayStart, raycastHitPos, IM_COL32(255, 0, 255, 255));
+    DebugDraw::instance().Line(raycastHitPos, rayEnd, IM_COL32(128, 0, 128, 128));
+}
+
+// turns out this only does the minimap ui, and not the stamina UI :/
+//void CemuHooks::hook_UpdateUIPosition(PPCInterpreter_t* hCPU) {
+//    hCPU->instructionPointer = hCPU->sprNew.LR;
+//
+//    EyeSide side = hCPU->gpr[10] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
+//    uint32_t currFrameCounter = hCPU->gpr[11];
+//    uint32_t doesUIManagerExist = hCPU->gpr[3] != 0;
+//    uint32_t uiManagerInstance = hCPU->gpr[12];
+//
+//    if (!doesUIManagerExist) {
+//        return;
+//    }
+//
+//    BEVec3 playerPosCopy = getMemory<BEVec3>(uiManagerInstance + offsetof(UIManager, innerArray.uiPos1));
+//    BEVec3 playerMtxPositionCopy = getMemory<BEVec3>(uiManagerInstance + offsetof(UIManager, innerArray.uiPos2));
+//
+//    Log::print<INFO>("[{}] Updating UI position (frame = {}, playerPos = {}, playerMtxPos = {})", side, currFrameCounter, playerPosCopy, playerMtxPositionCopy);
+//
+//    writeMemory(uiManagerInstance + offsetof(UIManager, innerArray.uiPos1), &playerPosCopy);
+//    writeMemory(uiManagerInstance + offsetof(UIManager, innerArray.uiPos2), &playerMtxPositionCopy);
+//}
