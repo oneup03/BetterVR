@@ -101,6 +101,13 @@ struct std::formatter<glm::fvec3> : std::formatter<string> {
 };
 
 template <>
+struct std::formatter<glm::fvec4> : std::formatter<string> {
+    auto format(const glm::fvec4& vec, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "{}", glm::to_string(vec));
+    }
+};
+
+template <>
 struct std::formatter<glm::fquat> : std::formatter<string> {
     auto format(const glm::fquat& quat, std::format_context& ctx) const {
         return std::format_to(ctx.out(), "[w={:.1f}, x={:.1f}, y={:.1f}, z={:.1f}] (euler: x={:.1f}, y={:.1f}, z={:.1f})", quat.w, quat.x, quat.y, quat.z, glm::degrees(glm::eulerAngles(quat)).x, glm::degrees(glm::eulerAngles(quat)).y, glm::degrees(glm::eulerAngles(quat)).z);

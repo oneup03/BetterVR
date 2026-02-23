@@ -741,6 +741,28 @@ void CemuHooks::hook_CheckIfCameraCanSeePos(PPCInterpreter_t* hCPU) {
     hCPU->gpr[3] = visible ? 1 : 0;
 }
 
+
+
+void CemuHooks::hook_ModifyPixelUniformBlockData(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    auto currFovOpt = VRManager::instance().XR->GetRenderer()->GetFOV(EyeSide::RIGHT);
+    if (!currFovOpt.has_value()) {
+        return;
+    }
+
+    glm::fvec4 ubData = {};
+    readMemory(hCPU->gpr[5], &ubData);
+    
+    XrFovf currFOV = currFovOpt.value();
+    auto newProjection = calculateFOVAndOffset(currFOV);
+
+    ubData.x = 0.5f+newProjection.offsetX.getLE();
+    ubData.y = 0.5f+newProjection.offsetY.getLE();
+
+    writeMemory(hCPU->gpr[5], &ubData);
+}
+
 void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 

@@ -2,7 +2,6 @@
 #include "entity_debugger.h"
 #include "utils/mod_settings.h"
 
-
 class CemuHooks {
 public:
     CemuHooks() {
@@ -49,6 +48,7 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_PlayerIsRidingSandSeal", &hook_PlayerIsRidingSandSeal);
         osLib_registerHLEFunction("coreinit", "hook_FixStaminaGaugeScreenPosition", &hook_FixStaminaGaugeScreenPosition);
         osLib_registerHLEFunction("coreinit", "hook_FixExtraStaminaGaugeIconPositions", &hook_FixExtraStaminaGaugeIconPositions);
+        osLib_registerHLEFunction("coreinit", "hook_ModifyPixelUniformBlockData", &hook_ModifyPixelUniformBlockData);
 
         // First-Person Model Hooks
         osLib_registerHLEFunction("coreinit", "hook_SetActorOpacity", &hook_SetActorOpacity);
@@ -245,6 +245,7 @@ private:
     static void hook_FixLadder(PPCInterpreter_t* hCPU);
     static void hook_PlayerIsRiding(PPCInterpreter_t* hCPU);
     static void hook_PlayerIsRidingSandSeal(PPCInterpreter_t* hCPU);
+    static void hook_ModifyPixelUniformBlockData(PPCInterpreter_t* hCPU);
 
     // First-Person Model Hooks
     static void hook_SetActorOpacity(PPCInterpreter_t* hCPU);
