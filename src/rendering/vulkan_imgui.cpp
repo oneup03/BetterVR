@@ -415,7 +415,7 @@ void RND_Renderer::ImGuiOverlay::Render(long frameIdx, bool renderBackground) {
             // When cropped to 16:9, the 3D image fills the full window; otherwise
             // it is centered with the VR headset's aspect ratio.
             if (shouldCrop3DTo16_9) {
-                DebugDraw::instance().Render(glm::vec2(0.0f, 0.0f), glm::vec2(windowSize.x, windowSize.y));
+                DebugDraw::instance().Render(glm::vec2(0.0f, 0.0f), glm::vec2(windowSize.x, windowSize.y), glm::vec2(croppedUv0.x, croppedUv0.y), glm::vec2(croppedUv1.x, croppedUv1.y));
             }
             else {
                 DebugDraw::instance().Render(glm::vec2(centerPos.x, centerPos.y), glm::vec2(squishedWindowSize.x, squishedWindowSize.y));

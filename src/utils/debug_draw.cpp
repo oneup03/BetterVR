@@ -32,7 +32,7 @@ void DebugDraw::Frustum(const glm::mat4& viewProjection, uint32_t color, float t
 
 static constexpr float NEAR_CLIP_W = 0.001f;
 
-bool DebugDraw::ProjectPoint(const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec3& worldPos, glm::vec4& clipOut, ImVec2& screenOut) {
+bool DebugDraw::ProjectPoint(const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec3& worldPos, glm::vec4& clipOut, ImVec2& screenOut) {
     clipOut = vp * glm::vec4(worldPos, 1.0f);
 
     if (clipOut.w <= NEAR_CLIP_W) {
@@ -43,14 +43,18 @@ bool DebugDraw::ProjectPoint(const glm::mat4& vp, const glm::vec2& viewportPos, 
     float ndcX = clipOut.x * invW;
     float ndcY = clipOut.y * invW;
 
-    // NDC [-1,1] -> viewport sub-region in ImGui logical coords
-    screenOut.x = viewportPos.x + (ndcX * 0.5f + 0.5f) * viewportSize.x;
-    screenOut.y = viewportPos.y + (-ndcY * 0.5f + 0.5f) * viewportSize.y; // Y flipped (screen Y goes down)
+    glm::vec2 uvRange = glm::max(uvMax - uvMin, glm::vec2(0.0001f));
+    float u = ndcX * 0.5f + 0.5f;
+    float v = -ndcY * 0.5f + 0.5f;
+
+    // NDC [-1,1] -> cropped UV range -> viewport sub-region in ImGui logical coords
+    screenOut.x = viewportPos.x + ((u - uvMin.x) / uvRange.x) * viewportSize.x;
+    screenOut.y = viewportPos.y + ((v - uvMin.y) / uvRange.y) * viewportSize.y; // Y flipped (screen Y goes down)
 
     return true;
 }
 
-void DebugDraw::DrawClippedLine(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec3& a, const glm::vec3& b, uint32_t color, float thickness) {
+void DebugDraw::DrawClippedLine(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec3& a, const glm::vec3& b, uint32_t color, float thickness) {
     glm::vec4 clipA = vp * glm::vec4(a, 1.0f);
     glm::vec4 clipB = vp * glm::vec4(b, 1.0f);
 
@@ -75,22 +79,25 @@ void DebugDraw::DrawClippedLine(ImDrawList* drawList, const glm::mat4& vp, const
 
     // Perspective divide and viewport mapping
     // NDC [-1,1] maps to the viewport sub-region, not the full screen
+    glm::vec2 uvRange = glm::max(uvMax - uvMin, glm::vec2(0.0001f));
     auto toScreen = [&](const glm::vec4& clip) -> ImVec2 {
         float invW = 1.0f / clip.w;
         float ndcX = clip.x * invW;
         float ndcY = clip.y * invW;
+        float u = ndcX * 0.5f + 0.5f;
+        float v = -ndcY * 0.5f + 0.5f;
         return ImVec2(
-            viewportPos.x + (ndcX * 0.5f + 0.5f) * viewportSize.x,
-            viewportPos.y + (-ndcY * 0.5f + 0.5f) * viewportSize.y
+            viewportPos.x + ((u - uvMin.x) / uvRange.x) * viewportSize.x,
+            viewportPos.y + ((v - uvMin.y) / uvRange.y) * viewportSize.y
         );
     };
 
     drawList->AddLine(toScreen(clipA), toScreen(clipB), color, thickness);
 }
 
-void DebugDraw::DrawEdges(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec3* corners, const int (*edges)[2], int edgeCount, uint32_t color, float thickness) {
+void DebugDraw::DrawEdges(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec3* corners, const int (*edges)[2], int edgeCount, uint32_t color, float thickness) {
     for (int i = 0; i < edgeCount; ++i) {
-        DrawClippedLine(drawList, vp, viewportPos, viewportSize, corners[edges[i][0]], corners[edges[i][1]], color, thickness);
+        DrawClippedLine(drawList, vp, viewportPos, viewportSize, uvMin, uvMax, corners[edges[i][0]], corners[edges[i][1]], color, thickness);
     }
 }
 
@@ -128,7 +135,7 @@ void DebugDraw::SetViewProjection(const glm::mat4& vp) {
 // Render
 // -----------------------------------------------------------------------
 
-void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSize) {
+void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax) {
     std::lock_guard lk(m_mutex);
 
     if (m_primitives.empty() || !m_hasVP) {
@@ -147,7 +154,7 @@ void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSi
     for (const auto& prim : m_primitives) {
         switch (prim.type) {
             case PrimitiveType::LINE: {
-                DrawClippedLine(drawList, viewProjection, viewportPos, viewportSize, prim.a, prim.b, prim.color, prim.thickness);
+                DrawClippedLine(drawList, viewProjection, viewportPos, viewportSize, uvMin, uvMax, prim.a, prim.b, prim.color, prim.thickness);
                 break;
             }
 
@@ -166,7 +173,7 @@ void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSi
                     { mn.x, mx.y, mx.z },
                 };
 
-                DrawEdges(drawList, viewProjection, viewportPos, viewportSize, corners, BOX_EDGES, 12, prim.color, prim.thickness);
+                DrawEdges(drawList, viewProjection, viewportPos, viewportSize, uvMin, uvMax, corners, BOX_EDGES, 12, prim.color, prim.thickness);
                 break;
             }
 
@@ -192,7 +199,7 @@ void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSi
                     corners[i] = center + rot * localCorners[i];
                 }
 
-                DrawEdges(drawList, viewProjection, viewportPos, viewportSize, corners, BOX_EDGES, 12, prim.color, prim.thickness);
+                DrawEdges(drawList, viewProjection, viewportPos, viewportSize, uvMin, uvMax, corners, BOX_EDGES, 12, prim.color, prim.thickness);
                 break;
             }
 
@@ -219,7 +226,7 @@ void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSi
                     corners[i] = glm::vec3(world) / world.w;
                 }
 
-                DrawEdges(drawList, viewProjection, viewportPos, viewportSize, corners, BOX_EDGES, 12, prim.color, prim.thickness);
+                DrawEdges(drawList, viewProjection, viewportPos, viewportSize, uvMin, uvMax, corners, BOX_EDGES, 12, prim.color, prim.thickness);
                 break;
             }
         }

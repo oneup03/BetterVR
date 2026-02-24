@@ -31,7 +31,7 @@ public:
     // Projects all submitted primitives using the stored VP matrix and draws
     // them onto ImGui::GetForegroundDrawList(). Does NOT clear the buffer,
     // so the same primitives can be rendered for multiple eyes/passes.
-    void Render(const glm::vec2& viewportPos, const glm::vec2& viewportSize);
+    void Render(const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin = glm::vec2(0.0f), const glm::vec2& uvMax = glm::vec2(1.0f));
 
     /// Clears all submitted primitives. Call once per game frame, after all
     /// Render() calls for that frame are complete.
@@ -68,7 +68,7 @@ private:
     bool m_hasVP = false;
 
     // Internal helpers
-    static bool ProjectPoint(const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec3& worldPos, glm::vec4& clipOut, ImVec2& screenOut);
-    static void DrawClippedLine(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec3& a, const glm::vec3& b, uint32_t color, float thickness);
-    static void DrawEdges(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec3* corners, const int (*edges)[2], int edgeCount, uint32_t color, float thickness);
+    static bool ProjectPoint(const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec3& worldPos, glm::vec4& clipOut, ImVec2& screenOut);
+    static void DrawClippedLine(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec3& a, const glm::vec3& b, uint32_t color, float thickness);
+    static void DrawEdges(ImDrawList* drawList, const glm::mat4& vp, const glm::vec2& viewportPos, const glm::vec2& viewportSize, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec3* corners, const int (*edges)[2], int edgeCount, uint32_t color, float thickness);
 };
