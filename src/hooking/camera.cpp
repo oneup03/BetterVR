@@ -1,7 +1,7 @@
-#include "utils/debug_draw.h"
 #include "cemu_hooks.h"
 #include "instance.h"
 #include "rendering/openxr.h"
+#include "utils/debug_draw.h"
 
 bool CemuHooks::UseMonoFrameBufferTemporarilyDuringMenusOrPictures() {
     return IsScreenOpen(ScreenId::PauseMenuInfo_00) || VRManager::instance().XR->GetRenderer()->IsGameCapturing3DFrameBuffer();
@@ -26,6 +26,51 @@ static std::pair<glm::quat, glm::quat> swingTwistY(const glm::quat& q) {
     glm::quat swing = q * glm::conjugate(twist);
     return { swing, twist };
 }
+
+// https://github.com/KhronosGroup/OpenXR-SDK/blob/858912260ca616f4c23f7fb61c89228c353eb124/src/common/xr_linear.h#L564C1-L632C2
+// https://github.com/aboood40091/sead/blob/45b629fb032d88b828600a1b787729f2d398f19d/engine/library/modules/src/gfx/seadProjection.cpp#L166
+
+static data_VRProjectionMatrixOut calculateFOVAndOffset(XrFovf viewFOV) {
+    float totalHorizontalFov = viewFOV.angleRight - viewFOV.angleLeft;
+    float totalVerticalFov = viewFOV.angleUp - viewFOV.angleDown;
+
+    float aspectRatio = totalHorizontalFov / totalVerticalFov;
+    float fovY = totalVerticalFov;
+    float projectionCenter_offsetX = (viewFOV.angleRight + viewFOV.angleLeft) / 2.0f;
+    float projectionCenter_offsetY = (viewFOV.angleUp + viewFOV.angleDown) / 2.0f;
+
+    data_VRProjectionMatrixOut ret = {};
+    ret.aspectRatio = aspectRatio;
+    ret.fovY = fovY;
+    ret.offsetX = projectionCenter_offsetX;
+    ret.offsetY = projectionCenter_offsetY;
+
+    return ret;
+}
+
+static glm::mat4 calculateProjectionMatrix(float nearZ, float farZ, const XrFovf& fov) {
+    float l = tanf(fov.angleLeft) * nearZ;
+    float r = tanf(fov.angleRight) * nearZ;
+    float b = tanf(fov.angleDown) * nearZ;
+    float t = tanf(fov.angleUp) * nearZ;
+
+    float invW = 1.0f / (r - l);
+    float invH = 1.0f / (t - b);
+    float invD = 1.0f / (farZ - nearZ);
+
+    glm::mat4 dst = {};
+    dst[0][0] = 2.0f * nearZ * invW;
+    dst[1][1] = 2.0f * nearZ * invH;
+    dst[0][2] = (r + l) * invW;
+    dst[1][2] = (t + b) * invH;
+    dst[2][2] = -(farZ + nearZ) * invD;
+    dst[2][3] = -(2.0f * farZ * nearZ) * invD;
+    dst[3][2] = -1.0f;
+    dst[3][3] = 0.0f;
+
+    return dst;
+}
+
 
 float hardcodedSwimOffset = 0.0f;
 float hardcodedRidingOffset = 0.65f;
@@ -88,7 +133,7 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
 
         PlayerMoveBitFlags moveBits = actor.moveBitFlags.getLE();
         s_isSwimming = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_SWIMMING_OR_CLIMBING | PlayerMoveBitFlags::IS_SWIMMING);
-        s_isCrouching = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_CROUCHING); 
+        s_isCrouching = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_CROUCHING);
 
         // Todo: move those and their hooks in controls.cpp ?
         auto gameState = VRManager::instance().XR->m_gameState.load();
@@ -100,23 +145,19 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
 
         auto now = std::chrono::steady_clock::now();
         std::chrono::milliseconds crouchLerpDuration{ 150 };
-        if (s_isCrouching != s_wasCrouching)
-        {
+        if (s_isCrouching != s_wasCrouching) {
             crouch_state_change_time = now;
         }
         auto test = 0.8f;
-        if (now <= crouch_state_change_time + crouchLerpDuration)
-        {
+        if (now <= crouch_state_change_time + crouchLerpDuration) {
             auto elapsed = std::chrono::duration<float>(now - crouch_state_change_time);
             auto duration = std::chrono::duration<float>(crouchLerpDuration);
             float t = elapsed.count() / duration.count();
             t = glm::clamp(t, 0.0f, 1.0f);
-            if (s_isCrouching)
-            {
+            if (s_isCrouching) {
                 actualCrouchOffset = glm::mix(0.0f, test, t);
             }
-            else
-            {
+            else {
                 actualCrouchOffset = glm::mix(test, 0.0f, t);
             }
         }
@@ -267,7 +308,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
         BEMatrix34 playerMtx = {};
         readMemory(s_playerMtxAddress, &playerMtx);
         glm::fvec3 playerPos = playerMtx.getPos().getLE();
-        
+
         if (s_isRiding) {
             playerPos.y -= hardcodedRidingOffset;
         }
@@ -305,6 +346,20 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     glm::mat4 newWorldVR = glm::translate(glm::mat4(1.0f), newPos) * glm::mat4_cast(newRot);
     glm::mat4 newViewVR = glm::inverse(newWorldVR);
 
+    if (side == EyeSide::RIGHT && GetSettings().ShowDebugOverlay()) {
+        glm::mat4 proj = calculateProjectionMatrix(GetSettings().GetZNear(), GetSettings().GetZFar(), VRManager::instance().XR->GetRenderer()->GetFOV(side).value());
+            
+        // transpose the sead-convention (row-major) projections to standard column-major
+        glm::mat4 vrProj = glm::transpose(proj);
+
+        glm::mat4 vrVP = vrProj * newViewVR;
+        //DebugDraw::instance().Frustum(vrVP, IM_COL32(0, 255, 0, 255));
+
+        // store the right-eye projection matrix to transform the debug lines with
+        // use right-side due to that being the one shown in the 2D view
+        DebugDraw::instance().SetViewProjection(vrVP);
+    }
+
     camera.mtx.setLEMatrix(newViewVR);
 
     camera.pos = newPos;
@@ -327,51 +382,6 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
 
 constexpr uint32_t seadOrthoProjection = 0x1027B5BC;
 constexpr uint32_t seadPerspectiveProjection = 0x1027B54C;
-
-
-// https://github.com/KhronosGroup/OpenXR-SDK/blob/858912260ca616f4c23f7fb61c89228c353eb124/src/common/xr_linear.h#L564C1-L632C2
-// https://github.com/aboood40091/sead/blob/45b629fb032d88b828600a1b787729f2d398f19d/engine/library/modules/src/gfx/seadProjection.cpp#L166
-
-static data_VRProjectionMatrixOut calculateFOVAndOffset(XrFovf viewFOV) {
-    float totalHorizontalFov = viewFOV.angleRight - viewFOV.angleLeft;
-    float totalVerticalFov = viewFOV.angleUp - viewFOV.angleDown;
-
-    float aspectRatio = totalHorizontalFov / totalVerticalFov;
-    float fovY = totalVerticalFov;
-    float projectionCenter_offsetX = (viewFOV.angleRight + viewFOV.angleLeft) / 2.0f;
-    float projectionCenter_offsetY = (viewFOV.angleUp + viewFOV.angleDown) / 2.0f;
-
-    data_VRProjectionMatrixOut ret = {};
-    ret.aspectRatio = aspectRatio;
-    ret.fovY = fovY;
-    ret.offsetX = projectionCenter_offsetX;
-    ret.offsetY = projectionCenter_offsetY;
-
-    return ret;
-}
-
-static glm::mat4 calculateProjectionMatrix(float nearZ, float farZ, const XrFovf& fov) {
-    float l = tanf(fov.angleLeft) * nearZ;
-    float r = tanf(fov.angleRight) * nearZ;
-    float b = tanf(fov.angleDown) * nearZ;
-    float t = tanf(fov.angleUp) * nearZ;
-
-    float invW = 1.0f / (r - l);
-    float invH = 1.0f / (t - b);
-    float invD = 1.0f / (farZ - nearZ);
-
-    glm::mat4 dst = {};
-    dst[0][0] = 2.0f * nearZ * invW;
-    dst[1][1] = 2.0f * nearZ * invH;
-    dst[0][2] = (r + l) * invW;
-    dst[1][2] = (t + b) * invH;
-    dst[2][2] = -(farZ + nearZ) * invD;
-    dst[2][3] = -(2.0f * farZ * nearZ) * invD;
-    dst[3][2] = -1.0f;
-    dst[3][3] = 0.0f;
-
-    return dst;
-}
 
 void CemuHooks::hook_GetRenderProjection(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
@@ -742,7 +752,6 @@ void CemuHooks::hook_CheckIfCameraCanSeePos(PPCInterpreter_t* hCPU) {
 }
 
 
-
 void CemuHooks::hook_ModifyPixelUniformBlockData(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
@@ -753,12 +762,12 @@ void CemuHooks::hook_ModifyPixelUniformBlockData(PPCInterpreter_t* hCPU) {
 
     glm::fvec4 ubData = {};
     readMemory(hCPU->gpr[5], &ubData);
-    
+
     XrFovf currFOV = currFovOpt.value();
     auto newProjection = calculateFOVAndOffset(currFOV);
 
-    ubData.x = 0.5f+newProjection.offsetX.getLE();
-    ubData.y = 0.5f+newProjection.offsetY.getLE();
+    ubData.x = 0.5f + newProjection.offsetX.getLE();
+    ubData.y = 0.5f + newProjection.offsetY.getLE();
 
     writeMemory(hCPU->gpr[5], &ubData);
 }
@@ -1035,7 +1044,7 @@ void CemuHooks::hook_OverwriteCameraParam(PPCInterpreter_t* hCPU) {
         auto& paramList = storedCameraParameters[actionPtr];
         // store parameter offset if not already stored
         auto it = std::find_if(paramList.begin(), paramList.end(), [&paramNameStr](const CameraParamValueOffset& entry) {
-                return entry.name == paramNameStr;
+            return entry.name == paramNameStr;
         });
         if (it == paramList.end()) {
             // get offset by calling original function first
@@ -1098,7 +1107,7 @@ void CemuHooks::hook_PlayerLadderFix(PPCInterpreter_t* hCPU) {
 void CemuHooks::hook_VisualizeRayCastHits(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    if (VRManager::instance().XR->GetRenderer() == nullptr) {
+    if (VRManager::instance().XR->GetRenderer() == nullptr || !GetSettings().ShowDebugOverlay()) {
         return;
     }
 

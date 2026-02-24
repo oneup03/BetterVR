@@ -20,7 +20,6 @@ public:
     void Frustum(const glm::mat4& viewProjection, uint32_t color = IM_COL32(255, 255, 0, 255), float thickness = 1.0f);
 
     // -- VP matrix for rendering (set from camera hooks) --
-
     // Stores the view-projection matrix used for rendering debug primitives.
     // Must be a standard column-major VP matrix in game world space.
     // Call from the camera hook each frame.
