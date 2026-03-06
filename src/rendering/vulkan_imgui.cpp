@@ -823,6 +823,40 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                             settings.enableDebugOverlay.AddToGUI(&changed);
                         });
 
+                        DrawSettingRow("Enable 3D Static Reticle", [&]() {
+                            settings.enableStaticReticle.AddToGUI(&changed);
+                        });
+
+                        if (settings.enableStaticReticle.Get()) {
+                            DrawSettingRow("Reticle 3D Separation", [&]() {
+                                settings.staticReticlePixelOffsetPx.AddToGUI(&changed, windowWidth.x, 0.0f, 500.0f, [](float value) { return std::format("{:.1f} px", value); });
+                            });
+
+                            DrawSettingRow("Reticle Radius", [&]() {
+                                settings.staticReticleRadiusPx.AddToGUI(&changed, windowWidth.x, 1.0f, 64.0f, [](float value) { return std::format("{:.1f} px", value); });
+                            });
+
+                            DrawSettingRow("Reticle Thickness", [&]() {
+                                settings.staticReticleThicknessPx.AddToGUI(&changed, windowWidth.x, 1.0f, 8.0f, [](float value) { return std::format("{:.1f} px", value); });
+                            });
+
+                            DrawSettingRow("Reticle Opacity", [&]() {
+                                settings.staticReticleOpacity.AddToGUI(&changed, windowWidth.x, 0.1f, 1.0f, [](float value) { return std::format("{:.2f}", value); });
+                            });
+
+                            DrawSettingRow("Reticle Color R", [&]() {
+                                settings.staticReticleColorR.AddToGUI(&changed, windowWidth.x, 0.0f, 1.0f, [](float value) { return std::format("{:.2f}", value); });
+                            });
+
+                            DrawSettingRow("Reticle Color G", [&]() {
+                                settings.staticReticleColorG.AddToGUI(&changed, windowWidth.x, 0.0f, 1.0f, [](float value) { return std::format("{:.2f}", value); });
+                            });
+
+                            DrawSettingRow("Reticle Color B", [&]() {
+                                settings.staticReticleColorB.AddToGUI(&changed, windowWidth.x, 0.0f, 1.0f, [](float value) { return std::format("{:.2f}", value); });
+                            });
+                        }
+
                         if (VRManager::instance().XR->m_capabilities.isOculusLinkRuntime) {
                             DrawSettingRow("Angular Velocity Fixer", [&]() {
                                 settings.buggyAngularVelocity.AddComboToGUI(&changed, ModSettings::toDisplayString);

@@ -4,7 +4,7 @@
 // shader 569ebe93f1ae5799
 // Used For: More contrasty crosshair And UI colors for VR
 
-#define ENABLE_RECOLORING $accessibilityUIColor
+#define ACCESSIBILITY_UI_MODE $accessibilityUIColor
 const vec4 UI_Coloring = vec4($accessibilityUIColor_x, $accessibilityUIColor_y, $accessibilityUIColor_z, $accessibilityUIColor_w);
 
 #ifdef VULKAN
@@ -55,8 +55,6 @@ R0f.xyzw = (texture(textureUnitPS0, vec2(R0f.x,R0f.y)).xyzw);
 
 ivec4 uf_remappedPSNew = uf_remappedPS[0];
 
-#if (ENABLE_RECOLORING == 1)
-
 vec4 convertedColors = vec4(intBitsToFloat(uf_remappedPS[0].x), intBitsToFloat(uf_remappedPS[0].y), intBitsToFloat(uf_remappedPS[0].z), intBitsToFloat(uf_remappedPS[0].w));
 
 bool matchesX = convertedColors.x == 1.0f;
@@ -65,13 +63,15 @@ bool matchesZ = convertedColors.z >= 0.77 && convertedColors.z <= 0.78;
 bool matchesW = convertedColors.w >= 1.0 && convertedColors.w <= 1.0;
 
 if (matchesX && matchesY && matchesZ && matchesW) {
+#if (ACCESSIBILITY_UI_MODE == 1)
   uf_remappedPSNew.x = floatBitsToInt(UI_Coloring.x);
   uf_remappedPSNew.y = floatBitsToInt(UI_Coloring.y);
   uf_remappedPSNew.z = floatBitsToInt(UI_Coloring.z);
   uf_remappedPSNew.w = floatBitsToInt(UI_Coloring.w);
-}
-
+#elif (ACCESSIBILITY_UI_MODE == 2)
+  discard;
 #endif
+}
 
 // 0
 R1f.x = mul_nonIEEE(R0f.x,intBitsToFloat(uf_remappedPSNew.x)) + intBitsToFloat(uf_remappedPS[1].x);

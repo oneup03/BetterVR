@@ -276,7 +276,7 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
 void CemuHooks::hook_FixStaminaGaugeScreenPosition(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    if (IsThirdPerson()) {
+    if (IsThirdPerson() && GetSettings().GetCameraMode() != CameraMode::ORIGINAL) {
         return;
     }
 
@@ -302,7 +302,7 @@ void CemuHooks::hook_FixExtraStaminaGaugeIconPositions(PPCInterpreter_t* hCPU) {
     // original instruction that got replaced
     hCPU->fpr[29].fp0 = 1.0f;
 
-    if (IsThirdPerson()) {
+    if (IsThirdPerson() && GetSettings().GetCameraMode() != CameraMode::ORIGINAL) {
         return;
     }
 
