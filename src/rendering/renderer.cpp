@@ -267,8 +267,36 @@ void RND_Renderer::Layer3D::Render(OpenXR::EyeSide side, long frameIdx) {
     ID3D12CommandAllocator* allocator = VRManager::instance().D3D12->GetFrameAllocator();
 
     auto& settings = GetSettings();
+    const auto gameState = VRManager::instance().XR->m_gameState.load();
+    const uint32_t holdButtons = gameState.previous_button_hold;
+    const bool isThrowUseHeld = (holdButtons & VPAD_BUTTON_R) != 0;
+
+    const bool isBowContext =
+        gameState.left_hand_current_equip_type == EquipType::Bow ||
+        gameState.left_hand_previous_frame_equip_type == EquipType::Bow ||
+        gameState.last_equip_type_held == EquipType::Bow;
+
+    const bool isThrowContext =
+        gameState.is_throwable_object_held ||
+        gameState.trigger_pressed_over_body_slot ||
+        gameState.right_hand_current_equip_type == EquipType::Melee ||
+        gameState.right_hand_previous_frame_equip_type == EquipType::Melee ||
+        gameState.last_equip_type_held == EquipType::Melee;
+
+    const bool isRuneOrPowerContext =
+        gameState.left_hand_current_equip_type == EquipType::SheikahSlate ||
+        gameState.left_hand_previous_frame_equip_type == EquipType::SheikahSlate ||
+        gameState.right_hand_current_equip_type == EquipType::MagnetGlove ||
+        gameState.right_hand_previous_frame_equip_type == EquipType::MagnetGlove ||
+        gameState.last_equip_type_held == EquipType::SheikahSlate;
+
+    const bool isBowOrThrowAiming = isBowContext || (isThrowContext && isThrowUseHeld);
+    const bool isRuneOrPowerAiming = isRuneOrPowerContext;
+
+    // Context-only gate for bow/runes, with throw additionally requiring the throw button hold.
+    const bool shouldShowReticle = CemuHooks::IsInGame() && settings.enableStaticReticle.Get() && (isBowOrThrowAiming || isRuneOrPowerAiming);
     const float reticleEyeSign = side == OpenXR::EyeSide::LEFT ? 1.0f : -1.0f;
-    const float reticleEnabled = (CemuHooks::IsInGame() && settings.enableStaticReticle.Get()) ? 1.0f : 0.0f;
+    const float reticleEnabled = shouldShowReticle ? 1.0f : 0.0f;
     m_presentPipelines[side]->BindSettings(
         (float)m_swapchains[side]->GetWidth(),
         (float)m_swapchains[side]->GetHeight(),
