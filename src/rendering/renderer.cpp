@@ -266,7 +266,24 @@ void RND_Renderer::Layer3D::Render(OpenXR::EyeSide side, long frameIdx) {
     ID3D12CommandQueue* queue = VRManager::instance().D3D12->GetCommandQueue();
     ID3D12CommandAllocator* allocator = VRManager::instance().D3D12->GetFrameAllocator();
 
-    RND_D3D12::CommandContext<false> renderSharedTexture(device, queue, allocator, [this, side, frameIdx](RND_D3D12::CommandContext<false>* context) {
+    auto& settings = GetSettings();
+    const float reticleEyeSign = side == OpenXR::EyeSide::LEFT ? 1.0f : -1.0f;
+    const float reticleEnabled = (CemuHooks::IsInGame() && settings.enableStaticReticle.Get()) ? 1.0f : 0.0f;
+    m_presentPipelines[side]->BindSettings(
+        (float)m_swapchains[side]->GetWidth(),
+        (float)m_swapchains[side]->GetHeight(),
+        reticleEyeSign,
+        std::max(0.0f, settings.staticReticlePixelOffsetPx.Get()),
+        settings.staticReticleRadiusPx.Get(),
+        settings.staticReticleThicknessPx.Get(),
+        std::clamp(settings.staticReticleOpacity.Get(), 0.0f, 1.0f),
+        reticleEnabled,
+        std::clamp(settings.staticReticleColorR.Get(), 0.0f, 1.0f),
+        std::clamp(settings.staticReticleColorG.Get(), 0.0f, 1.0f),
+        std::clamp(settings.staticReticleColorB.Get(), 0.0f, 1.0f)
+    );
+
+    RND_D3D12::CommandContext<false> renderSharedTexture(device, queue, allocator, [this, side, frameIdx, reticleEyeSign](RND_D3D12::CommandContext<false>* context) {
         context->GetRecordList()->SetName(L"RenderSharedTexture");
         auto& texture = m_textures[side][frameIdx];
         auto& depthTexture = m_depthTextures[side][frameIdx];

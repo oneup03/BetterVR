@@ -640,6 +640,10 @@ struct ModSettings {
 
     static constexpr float kDefaultAxisThreshold = 0.5f;
     static constexpr float kDefaultStickDeadzone = 0.15f;
+    static constexpr float kDefaultReticlePixelOffsetPx = 100.0f;
+    static constexpr float kDefaultReticleRadiusPx = 15.0f;
+    static constexpr float kDefaultReticleThicknessPx = 2.0f;
+    static constexpr float kDefaultReticleOpacity = 0.65f;
 
     // playing mode settings
     EnumSetting<CameraMode> cameraMode = EnumSetting<CameraMode>("CameraMode", CameraMode::FIRST_PERSON, ModSettings::toString, { CameraMode::FIRST_PERSON, CameraMode::THIRD_PERSON, CameraMode::ORIGINAL });
@@ -658,6 +662,14 @@ struct ModSettings {
 
     // advanced settings
     BoolSetting enableDebugOverlay = BoolSetting("EnableDebugOverlay", false);
+    BoolSetting enableStaticReticle = BoolSetting("EnableStaticReticle", true);
+    FloatSetting<float> staticReticlePixelOffsetPx = FloatSetting<float>("StaticReticlePixelOffsetPx", kDefaultReticlePixelOffsetPx, 0.0f, 500.0f);
+    FloatSetting<float> staticReticleRadiusPx = FloatSetting<float>("StaticReticleRadiusPx", kDefaultReticleRadiusPx, 1.0f, 64.0f);
+    FloatSetting<float> staticReticleThicknessPx = FloatSetting<float>("StaticReticleThicknessPx", kDefaultReticleThicknessPx, 1.0f, 8.0f);
+    FloatSetting<float> staticReticleOpacity = FloatSetting<float>("StaticReticleOpacity", kDefaultReticleOpacity, 0.1f, 1.0f);
+    FloatSetting<float> staticReticleColorR = FloatSetting<float>("StaticReticleColorR", 0.0f, 0.0f, 1.0f);
+    FloatSetting<float> staticReticleColorG = FloatSetting<float>("StaticReticleColorG", 1.0f, 0.0f, 1.0f);
+    FloatSetting<float> staticReticleColorB = FloatSetting<float>("StaticReticleColorB", 1.0f, 0.0f, 1.0f);
     EnumSetting<AngularVelocityFixerMode> buggyAngularVelocity = EnumSetting<AngularVelocityFixerMode>("BuggyAngularVelocity", AngularVelocityFixerMode::AUTO, ModSettings::toString, { AngularVelocityFixerMode::AUTO, AngularVelocityFixerMode::FORCED_ON, AngularVelocityFixerMode::FORCED_OFF });
     EnumSetting<PerformanceOverlayMode> performanceOverlay = EnumSetting<PerformanceOverlayMode>("PerformanceOverlay", PerformanceOverlayMode::DISABLE, ModSettings::toString, { PerformanceOverlayMode::DISABLE, PerformanceOverlayMode::WINDOW_ONLY, PerformanceOverlayMode::WINDOW_AND_VR });
     UIntSetting<uint32_t> performanceOverlayFrequency = UIntSetting<uint32_t>("PerformanceOverlayFrequency", 90);
@@ -681,6 +693,14 @@ struct ModSettings {
             &hudSize,
             &cropFlatTo16x9,
             &enableDebugOverlay,
+            &enableStaticReticle,
+            &staticReticlePixelOffsetPx,
+            &staticReticleRadiusPx,
+            &staticReticleThicknessPx,
+            &staticReticleOpacity,
+            &staticReticleColorR,
+            &staticReticleColorG,
+            &staticReticleColorB,
             &buggyAngularVelocity,
             &performanceOverlay,
             &performanceOverlayFrequency,
@@ -728,6 +748,12 @@ struct ModSettings {
         std::format_to(std::back_inserter(buffer), " - Player Height: {} meters\n", GetPlayerHeightOffset());
         std::format_to(std::back_inserter(buffer), " - Crop Flat to 16:9: {}\n", ShouldFlatPreviewBeCroppedTo16x9() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Debug Overlay: {}\n", ShowDebugOverlay() ? "Enabled" : "Disabled");
+        std::format_to(std::back_inserter(buffer), " - Static Reticle: {}\n", enableStaticReticle.Get() ? "Enabled" : "Disabled");
+        std::format_to(std::back_inserter(buffer), " - Static Reticle Pixel Offset: {:.2f}px\n", staticReticlePixelOffsetPx.Get());
+        std::format_to(std::back_inserter(buffer), " - Static Reticle Radius: {:.2f}px\n", staticReticleRadiusPx.Get());
+        std::format_to(std::back_inserter(buffer), " - Static Reticle Thickness: {:.2f}px\n", staticReticleThicknessPx.Get());
+        std::format_to(std::back_inserter(buffer), " - Static Reticle Opacity: {:.2f}\n", staticReticleOpacity.Get());
+        std::format_to(std::back_inserter(buffer), " - Static Reticle Color: ({:.2f}, {:.2f}, {:.2f})\n", staticReticleColorR.Get(), staticReticleColorG.Get(), staticReticleColorB.Get());
         std::format_to(std::back_inserter(buffer), " - Cutscene Camera Mode: {}\n", toDisplayString(GetCutsceneCameraMode()));
         std::format_to(std::back_inserter(buffer), " - Show Black Bars for Third-Person Cutscenes: {}\n", UseBlackBarsForCutscenes() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Performance Overlay: {}\n", toDisplayString(performanceOverlay));
