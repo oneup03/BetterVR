@@ -290,11 +290,8 @@ void RND_Renderer::Layer3D::Render(OpenXR::EyeSide side, long frameIdx) {
         gameState.right_hand_previous_frame_equip_type == EquipType::MagnetGlove ||
         gameState.last_equip_type_held == EquipType::SheikahSlate;
 
-    const bool isBowOrThrowAiming = isBowContext || (isThrowContext && isThrowUseHeld);
-    const bool isRuneOrPowerAiming = isRuneOrPowerContext;
-
     // Context-only gate for bow/runes, with throw additionally requiring the throw button hold.
-    const bool shouldShowReticle = CemuHooks::IsInGame() && settings.enableStaticReticle.Get() && (isBowOrThrowAiming || isRuneOrPowerAiming);
+    const bool shouldShowReticle = CemuHooks::IsInGame() && !CemuHooks::HasActiveCutscene() && settings.enableStaticReticle.Get() && (isBowContext || (isThrowContext && isThrowUseHeld) || isRuneOrPowerContext);
     const float reticleEyeSign = side == OpenXR::EyeSide::LEFT ? 1.0f : -1.0f;
     const float reticleEnabled = shouldShowReticle ? 1.0f : 0.0f;
     m_presentPipelines[side]->BindSettings(

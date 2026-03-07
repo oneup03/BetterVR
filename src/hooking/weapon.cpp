@@ -168,7 +168,7 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
         }
     }
 
-    if (IsThirdPerson()) {
+    if (IsThirdPerson() && GetSettings().GetCameraMode() != CameraMode::ORIGINAL) {
         return;
     }
 
