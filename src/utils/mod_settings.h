@@ -662,6 +662,7 @@ struct ModSettings {
 
     // advanced settings
     BoolSetting enableDebugOverlay = BoolSetting("EnableDebugOverlay", false);
+    BoolSetting gyroFlipYZOriginal = BoolSetting("GyroFlipYZOriginal", false);
     BoolSetting enableStaticReticle = BoolSetting("EnableStaticReticle", true);
     FloatSetting<float> staticReticlePixelOffsetPx = FloatSetting<float>("StaticReticlePixelOffsetPx", kDefaultReticlePixelOffsetPx, 0.0f, 500.0f);
     FloatSetting<float> staticReticleRadiusPx = FloatSetting<float>("StaticReticleRadiusPx", kDefaultReticleRadiusPx, 1.0f, 64.0f);
@@ -693,6 +694,7 @@ struct ModSettings {
             &hudSize,
             &cropFlatTo16x9,
             &enableDebugOverlay,
+            &gyroFlipYZOriginal,
             &enableStaticReticle,
             &staticReticlePixelOffsetPx,
             &staticReticleRadiusPx,
@@ -748,6 +750,7 @@ struct ModSettings {
         std::format_to(std::back_inserter(buffer), " - Player Height: {} meters\n", GetPlayerHeightOffset());
         std::format_to(std::back_inserter(buffer), " - Crop Flat to 16:9: {}\n", ShouldFlatPreviewBeCroppedTo16x9() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Debug Overlay: {}\n", ShowDebugOverlay() ? "Enabled" : "Disabled");
+        std::format_to(std::back_inserter(buffer), " - Gyro Flip Y/Z (Original Camera): {}\n", gyroFlipYZOriginal.Get() ? "Enabled" : "Disabled");
         std::format_to(std::back_inserter(buffer), " - Static Reticle: {}\n", enableStaticReticle.Get() ? "Enabled" : "Disabled");
         std::format_to(std::back_inserter(buffer), " - Static Reticle Pixel Offset: {:.2f}px\n", staticReticlePixelOffsetPx.Get());
         std::format_to(std::back_inserter(buffer), " - Static Reticle Radius: {:.2f}px\n", staticReticleRadiusPx.Get());
