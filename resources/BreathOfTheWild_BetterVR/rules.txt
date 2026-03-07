@@ -52,8 +52,3 @@ $accessibilityUIColor_x = 0.6728
 $accessibilityUIColor_y = 0.0
 $accessibilityUIColor_z = 0.3272
 $accessibilityUIColor_w = 1.000
-
-[Preset]
-name = No Crosshair
-category = More Contrasty UI For Crosshair, Buttons etc.
-$accessibilityUIColor:int = 2
