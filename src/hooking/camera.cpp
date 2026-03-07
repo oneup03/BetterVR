@@ -95,6 +95,25 @@ static glm::fvec3 ApplyCameraModeEyeOffsetPolicy(const glm::fquat& baseYaw, cons
     return baseYaw * eyePos;
 }
 
+static float GetStereoDepthScaleForCurrentContext() {
+    if (CemuHooks::HasActiveCutscene()) {
+        return GetSettings().GetCutsceneStereoDepthScale();
+    }
+
+    return GetSettings().GetGameplayStereoDepthScale();
+}
+
+static glm::fvec3 ApplyStereoDepthScalePolicy(const glm::fvec3& eyePos) {
+    auto middlePoseOpt = VRManager::instance().XR->GetRenderer()->GetMiddlePose();
+    if (!middlePoseOpt.has_value()) {
+        return eyePos;
+    }
+
+    const glm::fvec3 middleEyePos = glm::fvec3(middlePoseOpt.value()[3]);
+    const float depthScale = GetStereoDepthScaleForCurrentContext();
+    return middleEyePos + (eyePos - middleEyePos) * depthScale;
+}
+
 static void SetLookAtCameraVectorsFromPose(BESeadLookAtCamera& camera, const glm::vec3& position, const glm::fquat& rotation) {
     const glm::vec3 forward = glm::normalize(rotation * glm::fvec3(0.0f, 0.0f, -1.0f));
     const glm::vec3 up = glm::normalize(rotation * glm::fvec3(0.0f, 1.0f, 0.0f));
@@ -379,6 +398,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
     CameraMode cameraMode = GetSettings().GetCameraMode();
+    eyePos = ApplyStereoDepthScalePolicy(eyePos);
     eyePos = ApplyCameraModeEyePosPolicy(eyePos, cameraMode);
 
     glm::vec3 newPos = basePos + ApplyCameraModeEyeOffsetPolicy(baseYaw, baseRot, eyePos, cameraMode);
@@ -608,6 +628,7 @@ void CemuHooks::hook_ModifyProjectionUsingCamera(PPCInterpreter_t* hCPU) {
         glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
         CameraMode cameraMode = GetSettings().GetCameraMode();
+        eyePos = ApplyStereoDepthScalePolicy(eyePos);
         eyePos = ApplyCameraModeEyePosPolicy(eyePos, cameraMode);
 
         glm::vec3 newPos = basePos + ApplyCameraModeEyeOffsetPolicy(baseYaw, baseRot, eyePos, cameraMode);
@@ -714,6 +735,7 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
     glm::fquat eyeRot = ToGLM(currPoseOpt.value().orientation);
 
     CameraMode cameraMode = GetSettings().GetCameraMode();
+    eyePos = ApplyStereoDepthScalePolicy(eyePos);
     eyePos = ApplyCameraModeEyePosPolicy(eyePos, cameraMode);
 
     glm::vec3 newPos = basePos + ApplyCameraModeEyeOffsetPolicy(baseYaw, baseRot, eyePos, cameraMode);
