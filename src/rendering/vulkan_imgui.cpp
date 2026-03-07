@@ -768,6 +768,10 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                         //});
                     }
 
+                    DrawSettingRow("Stereo Depth In Gameplay", [&]() {
+                        settings.gameplayStereoDepthScale.AddToGUI(&changed, windowWidth.x, 0.0f, 3.0f, [](float value) { return std::format("{:.2f}x", value); });
+                    });
+
                     ImGui::Spacing();
                     ImGui::Separator();
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
@@ -782,6 +786,10 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
 
                     DrawSettingRow("Black Bars In Third-Person Cutscenes", [&]() {
                         settings.useBlackBarsForCutscenes.AddToGUI(&changed);
+                    });
+
+                    DrawSettingRow("Stereo Depth In Cutscenes", [&]() {
+                        settings.cutsceneStereoDepthScale.AddToGUI(&changed, windowWidth.x, 0.0f, 1.5f, [](float value) { return std::format("{:.2f}x", value); });
                     });
 
                     ImGui::Spacing();

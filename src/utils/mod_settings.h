@@ -640,6 +640,8 @@ struct ModSettings {
 
     static constexpr float kDefaultAxisThreshold = 0.5f;
     static constexpr float kDefaultStickDeadzone = 0.15f;
+    static constexpr float kDefaultGameplayStereoDepthScale = 1.0f;
+    static constexpr float kDefaultCutsceneStereoDepthScale = 0.25f;
     static constexpr float kDefaultReticlePixelOffsetPx = 100.0f;
     static constexpr float kDefaultReticleRadiusPx = 15.0f;
     static constexpr float kDefaultReticleThicknessPx = 2.0f;
@@ -650,6 +652,8 @@ struct ModSettings {
     EnumSetting<PlayMode> playMode = EnumSetting<PlayMode>("PlayMode", PlayMode::STANDING, ModSettings::toString, { PlayMode::STANDING, PlayMode::SEATED });
     FloatSetting<float> thirdPlayerDistance = FloatSetting<float>("ThirdPlayerDistance", 0.5f, 0.0f);
     EnumSetting<EventMode> cutsceneCameraMode = EnumSetting<EventMode>("CutsceneCameraMode", EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS, ModSettings::toString, { EventMode::ALWAYS_FIRST_PERSON, EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS, EventMode::ALWAYS_THIRD_PERSON });
+    FloatSetting<float> gameplayStereoDepthScale = FloatSetting<float>("GameplayStereoDepthScale", kDefaultGameplayStereoDepthScale, 0.0f, 3.0f);
+    FloatSetting<float> cutsceneStereoDepthScale = FloatSetting<float>("CutsceneStereoDepthScale", kDefaultCutsceneStereoDepthScale, 0.0f, 1.5f);
     BoolSetting useBlackBarsForCutscenes = BoolSetting("UseBlackBarsForCutscenes", false);
 
     // first-person settings
@@ -686,6 +690,8 @@ struct ModSettings {
             &playMode,
             &thirdPlayerDistance,
             &cutsceneCameraMode,
+            &gameplayStereoDepthScale,
+            &cutsceneStereoDepthScale,
             &useBlackBarsForCutscenes,
             &playerHeightOffset,
             &leftHanded,
@@ -732,6 +738,8 @@ struct ModSettings {
         }
         return cutsceneCameraMode;
     }
+    float GetGameplayStereoDepthScale() const { return gameplayStereoDepthScale; }
+    float GetCutsceneStereoDepthScale() const { return cutsceneStereoDepthScale; }
     bool UseBlackBarsForCutscenes() const { return useBlackBarsForCutscenes; }
     bool ShouldFlatPreviewBeCroppedTo16x9() const { return cropFlatTo16x9 == 1; }
 
@@ -758,6 +766,8 @@ struct ModSettings {
         std::format_to(std::back_inserter(buffer), " - Static Reticle Opacity: {:.2f}\n", staticReticleOpacity.Get());
         std::format_to(std::back_inserter(buffer), " - Static Reticle Color: ({:.2f}, {:.2f}, {:.2f})\n", staticReticleColorR.Get(), staticReticleColorG.Get(), staticReticleColorB.Get());
         std::format_to(std::back_inserter(buffer), " - Cutscene Camera Mode: {}\n", toDisplayString(GetCutsceneCameraMode()));
+        std::format_to(std::back_inserter(buffer), " - Stereo Depth (Gameplay): {:.2f}x\n", GetGameplayStereoDepthScale());
+        std::format_to(std::back_inserter(buffer), " - Stereo Depth (Cutscenes): {:.2f}x\n", GetCutsceneStereoDepthScale());
         std::format_to(std::back_inserter(buffer), " - Show Black Bars for Third-Person Cutscenes: {}\n", UseBlackBarsForCutscenes() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - Performance Overlay: {}\n", toDisplayString(performanceOverlay));
         std::format_to(std::back_inserter(buffer), " - Performance Overlay Frequency: {} Hz\n", performanceOverlayFrequency.Get());
