@@ -636,6 +636,35 @@ namespace ksys::phys {
     };
 }
 
+struct BaseProcLink {
+    BEType<uint32_t> baseProcLinkData;
+    BEType<uint32_t> idAndPadding3;
+    BEType<uint32_t> engaged;
+};
+
+struct InlineParamVec3 {
+    BEType<uint32_t> intOrFloatOrBool;
+    BaseProcLink procLink;
+    BEVec3 value;
+    BEType<uint8_t> gap1C[16];
+    BEType<uint32_t> type;
+    BEType<uint32_t> keyPtr;
+};
+
+struct InlineParamBool {
+    BEType<uint8_t> value;
+    BEType<uint8_t> gap1[3];
+    BaseProcLink procLink;
+    BEType<uint8_t> gap1C[16+4+4+4];
+    BEType<uint32_t> type;
+    BEType<uint32_t> keyPtr;
+};
+
+static_assert(sizeof(InlineParamVec3) == 0x34, "InlineParamVec3 size mismatch");
+static_assert(sizeof(InlineParamBool) == 0x34, "InlineParamBool size mismatch");
+
+
+
 #pragma pack(pop)
 
 inline std::string contactLayerNames[] = {

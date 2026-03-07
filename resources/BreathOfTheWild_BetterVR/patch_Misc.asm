@@ -3,6 +3,12 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
+; disable agl::fx::Cloud::drawSunOcc which uses texture readback
+;0x0340425C = cmpwi r1, 0
+
+; disable peekTexture_checksQueuedRegions to narrow down interesting readback function
+;0x030F1B78 = nop
+
 ; disable AutoExposure
 ; 0x039D99A4 = li r3, 0
 

@@ -3,9 +3,6 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
-0x1046CF88 = Camera__sInstance:
-0x03191B70 = Camera__getLookAtCamera:
-
 0x020081AC = PlayerOrEnemy__dropWeapon:
 0x033BCD9C = ActorWeapons__resetBaseProc:
 
