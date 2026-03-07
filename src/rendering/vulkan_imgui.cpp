@@ -823,6 +823,12 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                             settings.enableDebugOverlay.AddToGUI(&changed);
                         });
 
+                        if (cameraMode == CameraMode::ORIGINAL) {
+                            DrawSettingRow("Gyro Flip Y/Z", [&]() {
+                                settings.gyroFlipYZOriginal.AddToGUI(&changed);
+                            });
+                        }
+
                         DrawSettingRow("Enable 3D Static Reticle", [&]() {
                             settings.enableStaticReticle.AddToGUI(&changed);
                         });
