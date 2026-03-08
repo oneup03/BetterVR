@@ -153,20 +153,17 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     if (actorPtr != 0 && boneNamePtr != 0) {
         sead::FixedSafeString40 actorName = getMemory<sead::FixedSafeString40>(actorPtr + offsetof(ActorWiiU, name));
         char* boneName = (char*)s_memoryBaseAddress + boneNamePtr;
-        if (actorName.getLE() == "GameROMPlayer") {
-            Log::print<INFO>("actorName = {}, boneName = {}", actorName.getLE(), boneName);
-            if (strcmp(boneName, "Weapon_L") == 0 || strcmp(boneName, "Weapon_R") == 0) {
-                Weapon targetActor = {};
-                readMemory(targetActorPtr, &targetActor);
+        if (actorName.getLE() == "GameROMPlayer" && (strcmp(boneName, "Weapon_L") == 0 || strcmp(boneName, "Weapon_R") == 0)) {
+            Weapon targetActor = {};
+            readMemory(targetActorPtr, &targetActor);
 
-                if (strcmp(boneName, "Weapon_L") == 0) {
-                    const bool isBow = targetActor.type.getLE() == Bow;
-                    const bool isSlateRune = targetActor.name.getLE() == "Item_Conductor";
-                    RND_Renderer::Layer2D::SetBowAimingActive(isBow || isSlateRune);
-                }
-                else if (targetActor.name.getLE() == "Item_Magnetglove") {
-                    RND_Renderer::Layer2D::SetBowAimingActive(true);
-                }
+            if (strcmp(boneName, "Weapon_L") == 0) {
+                const bool isBow = targetActor.type.getLE() == Bow;
+                const bool isSlateRune = targetActor.name.getLE() == "Item_Conductor";
+                RND_Renderer::Layer2D::SetBowAimingActive(isBow || isSlateRune);
+            }
+            else if (targetActor.name.getLE() == "Item_Magnetglove") {
+                RND_Renderer::Layer2D::SetBowAimingActive(true);
             }
         }
     }
