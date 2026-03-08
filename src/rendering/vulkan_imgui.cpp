@@ -740,14 +740,9 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
                     ImGui::Text("UI");
                     ImGui::PopStyleColor();
-                    if (cameraMode == CameraMode::FIRST_PERSON) {
-                        DrawSettingRow("UI Follows Where You Look", [&]() {
-                            settings.uiFollowsGaze.AddToGUI(&changed);
-                        });
-                    }
-                    else {
-                        ImGui::Text("");
-                    }
+                    DrawSettingRow("UI Follows Where You Look", [&]() {
+                        settings.uiFollowsGaze.AddToGUI(&changed);
+                    });
 
                     ImGui::Spacing();
                     ImGui::Separator();

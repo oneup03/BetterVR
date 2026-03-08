@@ -185,7 +185,7 @@ stw r12, 0x14(r1)
 
 ; random crash fix where the projection is null
 cmpwi r3, 0
-beq useDefaultProjectionMatrix
+beq returnDefaultProjectionMatrix
 
 ; prevent modifying anything but sead::PerspectiveProjection
 lwz r12, 0x90(r3)
@@ -200,6 +200,12 @@ addi r11, r11, returnAddress_lightPrePassProjectionMatrix@l
 cmpw r0, r11
 bne continue_sead__Projection__getProjectionMatrix
 
+; use custom modified projection matrix for light pre-pass while stubbed hooks are enabled, instead of running C++ hooks
+lis r12, useStubHooks@ha
+lwz r12, useStubHooks@l(r12)
+cmpwi r12, 1
+beq returnDefaultProjectionMatrix
+
 ; call C++ code to modify the projection matrix to use the VR projection matrices for each eye
 lis r11, currentEyeSide@ha
 lwz r11, currentEyeSide@l(r11)
@@ -213,9 +219,9 @@ mr r31, r3
 bctrl ; bl sead::Projection::updateMatrix
 b exit_custom_sead__Projection__getProjectionMatrix
 
-useDefaultProjectionMatrix:
-lis r31, modifiedCopy_seadPerspectiveProjection@ha
-addi r31, r31, modifiedCopy_seadPerspectiveProjection@l
+returnDefaultProjectionMatrix:
+lis r31, example_PerspectiveProjectionMatrix@ha
+addi r31, r31, example_PerspectiveProjectionMatrix@l
 
 exit_custom_sead__Projection__getProjectionMatrix:
 addi r3, r31, 4

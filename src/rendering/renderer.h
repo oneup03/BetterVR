@@ -160,7 +160,11 @@ public:
         long GetCurrentFrameIdx() const { return m_currentFrameIdx; }
         auto& GetSharedTextures() { return m_textures; }
 
+        static void SetBowAimingActive(bool isActive) { s_isBowAimingActive = isActive; }
+        static bool IsBowAimingActive() { return s_isBowAimingActive; }
+
     private:
+        static std::atomic_bool s_isBowAimingActive;
         std::unique_ptr<Swapchain<DXGI_FORMAT_R8G8B8A8_UNORM_SRGB>> m_swapchain;
         std::unique_ptr<RND_D3D12::PresentPipeline<false>> m_presentPipeline;
         std::array<std::unique_ptr<SharedTexture>, 2> m_textures;

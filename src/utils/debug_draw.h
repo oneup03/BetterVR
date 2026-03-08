@@ -15,6 +15,8 @@ public:
 
     // -- Submit primitives (thread-safe, callable from any thread) --
     void Line(const glm::vec3& a, const glm::vec3& b, uint32_t color = IM_COL32(0, 255, 0, 255), float thickness = 1.0f);
+    void Dot(const glm::vec3& position, float radius = 4.0f, uint32_t color = IM_COL32(0, 255, 0, 255));
+    void Circle(const glm::vec3& position, float radius = 6.0f, uint32_t color = IM_COL32(0, 255, 0, 255), float thickness = 1.0f, int segments = 0);
     void Box(const glm::vec3& min, const glm::vec3& max, uint32_t color = IM_COL32(0, 255, 0, 255), float thickness = 1.0f);
     void Box(const glm::vec3& center, const glm::vec3& halfExtents, const glm::quat& rotation, uint32_t color = IM_COL32(0, 255, 0, 255), float thickness = 1.0f);
     void Frustum(const glm::mat4& viewProjection, uint32_t color = IM_COL32(255, 255, 0, 255), float thickness = 1.0f);
@@ -41,6 +43,7 @@ private:
 
     enum class PrimitiveType : uint8_t {
         LINE,
+        CIRCLE,
         AABB,
         ORIENTED_BOX,
         FRUSTUM,
@@ -52,6 +55,7 @@ private:
         float thickness;
 
         // LINE: a, b
+        // CIRCLE: a = center, radius/segments/filled used
         // AABB: a = min, b = max
         // ORIENTED_BOX: a = center, b = halfExtents, rotation used
         // FRUSTUM: inverseVP used
@@ -59,6 +63,9 @@ private:
         glm::vec3 b = {};
         glm::quat rotation = glm::identity<glm::quat>();
         glm::mat4 inverseVP = glm::mat4(1.0f);
+        float radius = 1.0f;
+        int segments = 0;
+        bool filled = false;
     };
 
     std::mutex m_mutex;

@@ -142,10 +142,6 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     hCPU->gpr[9] = 0; // this is used to indicate whether the weapon was modified
     hCPU->gpr[11] = 0; // this is used to drop the weapon if the grip button is pressed
 
-    if (IsThirdPerson()) {
-        return;
-    }
-
     uint32_t actorPtr = hCPU->gpr[3]; // holder of weapon
     uint32_t boneNamePtr = hCPU->gpr[4];
     uint32_t weaponMtxPtr = hCPU->gpr[5];
@@ -153,6 +149,31 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     uint32_t modelBindInfoMtxPtr = hCPU->gpr[7];
     uint32_t targetActorPtr = hCPU->gpr[8]; // weapon that's being held
     uint32_t cameraPtr = hCPU->gpr[10];
+
+    if (actorPtr != 0 && boneNamePtr != 0) {
+        sead::FixedSafeString40 actorName = getMemory<sead::FixedSafeString40>(actorPtr + offsetof(ActorWiiU, name));
+        char* boneName = (char*)s_memoryBaseAddress + boneNamePtr;
+        if (actorName.getLE() == "GameROMPlayer") {
+            Log::print<INFO>("actorName = {}, boneName = {}", actorName.getLE(), boneName);
+            if (strcmp(boneName, "Weapon_L") == 0 || strcmp(boneName, "Weapon_R") == 0) {
+                Weapon targetActor = {};
+                readMemory(targetActorPtr, &targetActor);
+
+                if (strcmp(boneName, "Weapon_L") == 0) {
+                    const bool isBow = targetActor.type.getLE() == Bow;
+                    const bool isSlateRune = targetActor.name.getLE() == "Item_Conductor";
+                    RND_Renderer::Layer2D::SetBowAimingActive(isBow || isSlateRune);
+                }
+                else if (targetActor.name.getLE() == "Item_Magnetglove") {
+                    RND_Renderer::Layer2D::SetBowAimingActive(true);
+                }
+            }
+        }
+    }
+
+    if (IsThirdPerson()) {
+        return;
+    }
 
     sead::FixedSafeString40 actorName = getMemory<sead::FixedSafeString40>(actorPtr + offsetof(ActorWiiU, name));
 

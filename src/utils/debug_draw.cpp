@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "debug_draw.h"
 
 // -----------------------------------------------------------------------
@@ -7,6 +8,16 @@
 void DebugDraw::Line(const glm::vec3& a, const glm::vec3& b, uint32_t color, float thickness) {
     std::lock_guard lk(m_mutex);
     m_primitives.push_back({ PrimitiveType::LINE, color, thickness, a, b });
+}
+
+void DebugDraw::Dot(const glm::vec3& position, float radius, uint32_t color) {
+    std::lock_guard lk(m_mutex);
+    m_primitives.push_back({ PrimitiveType::CIRCLE, color, 1.0f, position, {}, glm::identity<glm::quat>(), glm::mat4(1.0f), radius, 0, true });
+}
+
+void DebugDraw::Circle(const glm::vec3& position, float radius, uint32_t color, float thickness, int segments) {
+    std::lock_guard lk(m_mutex);
+    m_primitives.push_back({ PrimitiveType::CIRCLE, color, thickness, position, {}, glm::identity<glm::quat>(), glm::mat4(1.0f), radius, segments, false });
 }
 
 void DebugDraw::Box(const glm::vec3& min, const glm::vec3& max, uint32_t color, float thickness) {
@@ -155,6 +166,22 @@ void DebugDraw::Render(const glm::vec2& viewportPos, const glm::vec2& viewportSi
         switch (prim.type) {
             case PrimitiveType::LINE: {
                 DrawClippedLine(drawList, viewProjection, viewportPos, viewportSize, uvMin, uvMax, prim.a, prim.b, prim.color, prim.thickness);
+                break;
+            }
+
+            case PrimitiveType::CIRCLE: {
+                glm::vec4 clipCenter;
+                ImVec2 center;
+                if (!ProjectPoint(viewProjection, viewportPos, viewportSize, uvMin, uvMax, prim.a, clipCenter, center)) {
+                    break;
+                }
+
+                if (prim.filled) {
+                    drawList->AddCircleFilled(center, prim.radius, prim.color, prim.segments);
+                }
+                else {
+                    drawList->AddCircle(center, prim.radius, prim.color, prim.segments, prim.thickness);
+                }
                 break;
             }
 

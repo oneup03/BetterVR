@@ -3,6 +3,7 @@
 #include "texture.h"
 #include "utils/d3d12_utils.h"
 
+std::atomic_bool RND_Renderer::Layer2D::s_isBowAimingActive = false;
 
 RND_Renderer::RND_Renderer(XrSession xrSession): m_session(xrSession) {
     XrSessionBeginInfo m_sessionCreateInfo = { XR_TYPE_SESSION_BEGIN_INFO };
@@ -457,8 +458,12 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
 
     XrPosef layerPose = { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } };
 
-    // todo: switch to following UI whenever the player holds a bow
-    if (GetSettings().DoesUIFollowGaze()) {
+    auto inputState = VRManager::instance().XR->m_input.load();
+    const bool wasBowAimingSet = IsBowAimingActive();
+    SetBowAimingActive(false);
+    const bool isBowAiming = wasBowAimingSet && inputState.shared.in_game;
+
+    if (GetSettings().DoesUIFollowGaze() || isBowAiming) {
         m_currentOrientation = glm::slerp(m_currentOrientation, headOrientation, LERP_SPEED);
         glm::vec3 forwardDirection = headOrientation * glm::vec3(0.0f, 0.0f, -1.0f);
 
@@ -517,68 +522,6 @@ std::vector<XrCompositionLayerQuad> RND_Renderer::Layer2D::FinishRendering(XrTim
 
     if (!(inputs.shared.in_game && inputs.shared.pose[OpenXR::EyeSide::LEFT].isActive && inputs.shared.pose[OpenXR::EyeSide::RIGHT].isActive)) {
         return layers;
-    }
-
-    return layers;
-
-    auto movePoseToHandPosition = [](XrPosef& inputPose) {
-        glm::fquat modifiedRotation = ToGLM(inputPose.orientation);
-        glm::fvec3 modifiedPosition = ToGLM(inputPose.position);
-
-        modifiedRotation *= glm::angleAxis(glm::radians(-45.0f), glm::fvec3(1, 0, 0));
-
-
-        inputPose.orientation = ToXR(modifiedRotation);
-        inputPose.position = ToXR(modifiedPosition);
-    };
-
-    if ((inputs.shared.poseLocation[OpenXR::EyeSide::LEFT].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) == 1 || (inputs.shared.poseLocation[OpenXR::EyeSide::LEFT].locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) == 1) {
-        movePoseToHandPosition(inputs.shared.poseLocation[OpenXR::EyeSide::LEFT].pose);
-        // clang-format off
-        layers.push_back({
-            .type = XR_TYPE_COMPOSITION_LAYER_QUAD,
-            .layerFlags = 0,
-            .space = VRManager::instance().XR->m_stageSpace,
-            .eyeVisibility = XR_EYE_VISIBILITY_BOTH,
-            .subImage = {
-                .swapchain = this->m_swapchain->GetHandle(),
-                .imageRect = {
-                    .offset = { 0, 0 },
-                    .extent = {
-                        .width = (int32_t)this->m_swapchain->GetWidth(),
-                        .height = (int32_t)this->m_swapchain->GetHeight()
-                    }
-                }
-            },
-            .pose = inputs.shared.poseLocation[OpenXR::EyeSide::LEFT].pose,
-            .size = { 0.15f, 0.15f }
-        });
-        // clang-format on
-    }
-
-    if ((inputs.shared.poseLocation[OpenXR::EyeSide::RIGHT].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) == 1 || (inputs.shared.poseLocation[OpenXR::EyeSide::RIGHT].locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) == 1) {
-        movePoseToHandPosition(inputs.shared.poseLocation[OpenXR::EyeSide::RIGHT].pose);
-
-        // clang-format off
-        layers.push_back({
-            .type = XR_TYPE_COMPOSITION_LAYER_QUAD,
-            .layerFlags = 0,
-            .space = VRManager::instance().XR->m_stageSpace,
-            .eyeVisibility = XR_EYE_VISIBILITY_BOTH,
-            .subImage = {
-                .swapchain = this->m_swapchain->GetHandle(),
-                .imageRect = {
-                    .offset = { 0, 0 },
-                    .extent = {
-                        .width = (int32_t)this->m_swapchain->GetWidth(),
-                        .height = (int32_t)this->m_swapchain->GetHeight()
-                    }
-                }
-            },
-            .pose = inputs.shared.poseLocation[OpenXR::EyeSide::RIGHT].pose,
-            .size = { 0.15f, 0.15f }
-        });
-        // clang-format on
     }
 
     return layers;

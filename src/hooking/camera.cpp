@@ -97,7 +97,7 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
 
     // read the camera matrix from the game's memory
     uint32_t ppc_cameraMatrixOffsetIn = hCPU->gpr[31];
-    OpenXR::EyeSide side = hCPU->gpr[3] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
+    OpenXR::EyeSide side = hCPU->gpr[3] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
     ActCamera actCam = {};
     readMemory(ppc_cameraMatrixOffsetIn, &actCam);
 
@@ -280,7 +280,7 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
     uint32_t cameraOut = hCPU->gpr[12];
     OpenXR::EyeSide side = hCPU->gpr[11] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
 
-    if (CemuHooks::UseBlackBarsDuringEvents()) {
+    if (UseBlackBarsDuringEvents()) {
         return;
     }
 
@@ -542,8 +542,6 @@ void CemuHooks::hook_ModifyProjectionUsingCamera(PPCInterpreter_t* hCPU) {
 
         Log::print<RENDERING>("[{}] ModifyProjectionUsingCamera at {:08X}: {}", side, cameraPtr, camera);
 
-        OpenXR::EyeSide side = hCPU->gpr[5] == 0 ? EyeSide::LEFT : EyeSide::RIGHT;
-
         // in-game camera
         glm::mat4x3 viewMatrix = camera.mtx.getLEMatrix();
         glm::mat4 worldGame = glm::inverse(glm::mat4(viewMatrix));
@@ -727,7 +725,7 @@ void CemuHooks::hook_CheckIfCameraCanSeePos(PPCInterpreter_t* hCPU) {
     bool visible = false;
 
     for (int i = 0; i < 2; ++i) {
-        OpenXR::EyeSide side = (i == 0) ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
+        OpenXR::EyeSide side = (i == 0) ? EyeSide::LEFT : EyeSide::RIGHT;
         if (auto fovOpt = VRManager::instance().XR->GetRenderer()->GetFOV(side)) {
             auto [pos, rot] = CalculateVRWorldPose(camera, side);
 
