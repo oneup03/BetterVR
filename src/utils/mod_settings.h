@@ -650,7 +650,8 @@ struct ModSettings {
     // playing mode settings
     EnumSetting<CameraMode> cameraMode = EnumSetting<CameraMode>("CameraMode", CameraMode::FIRST_PERSON, ModSettings::toString, { CameraMode::FIRST_PERSON, CameraMode::THIRD_PERSON, CameraMode::ORIGINAL });
     EnumSetting<PlayMode> playMode = EnumSetting<PlayMode>("PlayMode", PlayMode::STANDING, ModSettings::toString, { PlayMode::STANDING, PlayMode::SEATED });
-    FloatSetting<float> thirdPlayerDistance = FloatSetting<float>("ThirdPlayerDistance", 0.5f, 0.0f);
+    FloatSetting<float> thirdPlayerDistance = FloatSetting<float>("ThirdPlayerDistance", 0.5f, 0.0f, 1.0f);
+    FloatSetting<float> originalRidingVerticalOffset = FloatSetting<float>("OriginalRidingVerticalOffset", 0.4f, 0.0f, 1.0f);
     EnumSetting<EventMode> cutsceneCameraMode = EnumSetting<EventMode>("CutsceneCameraMode", EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS, ModSettings::toString, { EventMode::ALWAYS_FIRST_PERSON, EventMode::FOLLOW_DEFAULT_EVENT_SETTINGS, EventMode::ALWAYS_THIRD_PERSON });
     FloatSetting<float> gameplayStereoDepthScale = FloatSetting<float>("GameplayStereoDepthScale", kDefaultGameplayStereoDepthScale, 0.0f, 3.0f);
     FloatSetting<float> cutsceneStereoDepthScale = FloatSetting<float>("CutsceneStereoDepthScale", kDefaultCutsceneStereoDepthScale, 0.0f, 1.5f);
@@ -689,6 +690,7 @@ struct ModSettings {
             &cameraMode,
             &playMode,
             &thirdPlayerDistance,
+            &originalRidingVerticalOffset,
             &cutsceneCameraMode,
             &gameplayStereoDepthScale,
             &cutsceneStereoDepthScale,
@@ -721,7 +723,12 @@ struct ModSettings {
     CameraMode GetCameraMode() const { return cameraMode; }
 
     PlayMode GetPlayMode() const { return playMode; }
-    bool DoesUIFollowGaze() const { return uiFollowsGaze; }
+    bool DoesUIFollowGaze() const {
+        if (GetCameraMode() == CameraMode::ORIGINAL) {
+            return false;
+        }
+        return uiFollowsGaze;
+    }
     bool IsLeftHanded() const { return leftHanded; }
     float GetPlayerHeightOffset() const {
         // disable height offset in third-person-style modes
@@ -740,8 +747,19 @@ struct ModSettings {
     }
     float GetGameplayStereoDepthScale() const { return gameplayStereoDepthScale; }
     float GetCutsceneStereoDepthScale() const { return cutsceneStereoDepthScale; }
-    bool UseBlackBarsForCutscenes() const { return useBlackBarsForCutscenes; }
-    bool ShouldFlatPreviewBeCroppedTo16x9() const { return cropFlatTo16x9 == 1; }
+    float GetOriginalRidingVerticalOffset() const { return originalRidingVerticalOffset; }
+    bool UseBlackBarsForCutscenes() const {
+        if (GetCameraMode() == CameraMode::ORIGINAL) {
+            return false;
+        }
+        return useBlackBarsForCutscenes;
+    }
+    bool ShouldFlatPreviewBeCroppedTo16x9() const {
+        if (GetCameraMode() == CameraMode::ORIGINAL) {
+            return true;
+        }
+        return cropFlatTo16x9 == 1;
+    }
 
     bool ShowDebugOverlay() const { return enableDebugOverlay; }
     AngularVelocityFixerMode AngularVelocityFixer_GetMode() const { return buggyAngularVelocity; }
@@ -753,6 +771,7 @@ struct ModSettings {
     std::string ToString() const {
         std::string buffer = "";
         std::format_to(std::back_inserter(buffer), " - Camera Mode: {}\n", toDisplayString(GetCameraMode()));
+        std::format_to(std::back_inserter(buffer), " - Original Riding Vertical Offset: {:.2f}m\n", GetOriginalRidingVerticalOffset());
         std::format_to(std::back_inserter(buffer), " - Left Handed: {}\n", IsLeftHanded() ? "Yes" : "No");
         std::format_to(std::back_inserter(buffer), " - GUI Follow Setting: {}\n", DoesUIFollowGaze() ? "Follow Looking Direction" : "Fixed");
         std::format_to(std::back_inserter(buffer), " - Player Height: {} meters\n", GetPlayerHeightOffset());

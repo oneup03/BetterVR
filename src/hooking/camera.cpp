@@ -74,6 +74,11 @@ static glm::mat4 calculateProjectionMatrix(float nearZ, float farZ, const XrFovf
 static glm::fvec3 ApplyCameraModeEyePosPolicy(glm::fvec3 eyePos, CameraMode cameraMode) {
     if (cameraMode == CameraMode::ORIGINAL) {
         eyePos.y = 0.0f;
+
+        auto gameState = VRManager::instance().XR->m_gameState.load();
+        if (gameState.is_riding_mount) {
+            eyePos.y += GetSettings().GetOriginalRidingVerticalOffset();
+        }
     }
 
     return eyePos;
@@ -177,23 +182,25 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
     s_wsCameraPosition = oldCameraPosition;
     s_wsCameraRotation = glm::quat_cast(glm::inverse(existingGameMtx));
 
+     // check if player is swimming
+    Player actor;
+    readMemory(s_playerAddress, &actor);
+
+    PlayerMoveBitFlags moveBits = actor.moveBitFlags.getLE();
+    s_isSwimming = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_SWIMMING_OR_CLIMBING | PlayerMoveBitFlags::IS_SWIMMING);
+    s_isCrouching = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_CROUCHING);
+
+    // Todo: move those and their hooks in controls.cpp ?
+    auto gameState = VRManager::instance().XR->m_gameState.load();
+    // Unreliable flag, need to investigate
+    gameState.is_climbing = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_SWIMMING_OR_CLIMBING | PlayerMoveBitFlags::IS_CLIMBING_WALL) || s_isLadderClimbing == 2;
+    gameState.is_riding_mount = (s_isRiding == 2 || s_isRidingSandSeal == 2) ? true : false;
+    gameState.is_paragliding = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_GLIDER_ACTIVE);
+    VRManager::instance().XR->m_gameState.store(gameState);
+
     // rebase the rotation to the player position
     if (IsFirstPerson()) {
-        // check if player is swimming
-        Player actor;
-        readMemory(s_playerAddress, &actor);
-
-        PlayerMoveBitFlags moveBits = actor.moveBitFlags.getLE();
-        s_isSwimming = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_SWIMMING_OR_CLIMBING | PlayerMoveBitFlags::IS_SWIMMING);
-        s_isCrouching = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_CROUCHING);
-
-        // Todo: move those and their hooks in controls.cpp ?
-        auto gameState = VRManager::instance().XR->m_gameState.load();
-        // Unreliable flag, need to investigate
-        gameState.is_climbing = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_SWIMMING_OR_CLIMBING | PlayerMoveBitFlags::IS_CLIMBING_WALL) || s_isLadderClimbing == 2;
-        gameState.is_riding_mount = (s_isRiding == 2 || s_isRidingSandSeal == 2) ? true : false;
-        gameState.is_paragliding = HAS_FLAG(moveBits, PlayerMoveBitFlags::IS_GLIDER_ACTIVE);
-        VRManager::instance().XR->m_gameState.store(gameState);
+       
 
         auto now = std::chrono::steady_clock::now();
         std::chrono::milliseconds crouchLerpDuration{ 150 };
@@ -244,17 +251,19 @@ void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
         if (s_isLadderClimbing > 0) {
             s_isLadderClimbing--;
         }
-        if (s_isRiding > 0) {
-            s_isRiding--;
-        }
-        if (s_isRidingSandSeal > 0) {
-            s_isRidingSandSeal--;
-        }
+        
 
         s_wasCrouching = s_isCrouching;
 
         glm::mat4 playerMtx4 = glm::inverse(glm::translate(glm::identity<glm::mat4>(), playerPos) * glm::mat4(s_wsCameraRotation));
         existingGameMtx = playerMtx4;
+    }
+
+    if (s_isRiding > 0) {
+        s_isRiding--;
+    }
+    if (s_isRidingSandSeal > 0) {
+        s_isRidingSandSeal--;
     }
 
     // current VR headset camera matrix
@@ -1122,7 +1131,7 @@ void CemuHooks::hook_PlayerIsRiding(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
     bool isRiding = hCPU->gpr[3] == 1;
-    if (isRiding && IsFirstPerson()) {
+    if (isRiding && (IsFirstPerson() || GetSettings().GetCameraMode() == CameraMode::ORIGINAL)) {
         s_isRiding = 2;
     }
 }
@@ -1131,7 +1140,7 @@ void CemuHooks::hook_PlayerIsRidingSandSeal(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
     bool isRiding = hCPU->gpr[3] == 1;
-    if (isRiding && IsFirstPerson()) {
+    if (isRiding && (IsFirstPerson() || GetSettings().GetCameraMode() == CameraMode::ORIGINAL)) {
         s_isRidingSandSeal = 2;
     }
 }
