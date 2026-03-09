@@ -657,6 +657,55 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
         return tabBar;
     };
 
+    auto formatDistance = [&](float distance) {
+        float distanceInches = distance * 39.3700787f;
+        int32_t distanceFeet = std::floor(distanceInches / 12.0f);
+        distanceInches -= distanceFeet * 12.0f;
+        return std::format("{:.02f}m / {}\' {:.02f}\"", distance, distanceFeet, distanceInches);
+    };
+
+    auto DrawLayerSettingsRow = [&](const char* label, bool* changed, FloatSetting<float>& distanceSetting, FloatSetting<float>& scaleSetting) {
+        DrawSettingRow(label, [&]() {
+            auto applyValues = [&](float distance, float scale) {
+                distanceSetting.Set(distance);
+                scaleSetting.Set(scale);
+            };
+
+            float distance = distanceSetting.Get();
+            float scale = scaleSetting.Get();
+            std::string distanceIdStr = std::format("##{}_Distance", label);
+            std::string scaleIdStr = std::format("##{}_Scale", label);
+
+            float totalWidth = ImGui::GetContentRegionAvail().x;
+            float resetWidth = 45.0f;
+            float itemSpacing = ImGui::GetStyle().ItemSpacing.x;
+            float sliderWidth = (totalWidth - resetWidth - itemSpacing * 2.0f) * 0.5f;
+
+            ImGui::PushItemWidth(sliderWidth);
+            if (ImGui::SliderFloat(distanceIdStr.c_str(), &distance, distanceSetting.min, distanceSetting.max, formatDistance(distance).c_str())) {
+                applyValues(std::clamp(distance, distanceSetting.min, distanceSetting.max), scaleSetting.Get());
+                *changed = true;
+            }
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(sliderWidth);
+            if (ImGui::SliderFloat(scaleIdStr.c_str(), &scale, scaleSetting.min, scaleSetting.max, "%.2fx scale")) {
+                applyValues(distanceSetting.Get(), std::clamp(scale, scaleSetting.min, scaleSetting.max));
+                *changed = true;
+            }
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            std::string resetIdStr = std::format("Reset##{}", label);
+            if (ImGui::Button(resetIdStr.c_str())) {
+                distanceSetting.Reset();
+                scaleSetting.Reset();
+                *changed = true;
+            }
+        });
+    };
+
     ImGui::SetNextWindowPos(fullWindowWidth * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(windowWidth, ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -745,11 +794,14 @@ void RND_Renderer::ImGuiOverlay::DrawHelpMenu() {
                     });
 
                     ImGui::Spacing();
-                    ImGui::Separator();
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
-                    ImGui::Text("Input");
-                    ImGui::PopStyleColor();
+                    DrawLayerSettingsRow("Menu/HUD Distance & Size", &changed, settings.hudDistance, settings.hudSize);
+
+                    ImGui::Spacing();
                     if (cameraMode == CameraMode::FIRST_PERSON) {
+                        ImGui::Separator();
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+                        ImGui::Text("Input");
+                        ImGui::PopStyleColor();
                         DrawSettingRow("Thumbstick Deadzone", [&]() {
                             settings.stickDeadzone.AddToGUI(&changed, windowWidth.x, 0.0f, 0.5f);
                         });
